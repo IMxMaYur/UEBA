@@ -22,8 +22,16 @@ class User(Base):
     latest_risk_score = Column(Float, default=0.0)
     created_at = Column(DateTime, default=datetime.datetime.utcnow)
 
+    # OCEAN personality traits (scores 10–50 from CERT psychometric dataset)
+    ocean_O = Column(Integer, nullable=True)   # Openness to Experience
+    ocean_C = Column(Integer, nullable=True)   # Conscientiousness
+    ocean_E = Column(Integer, nullable=True)   # Extraversion
+    ocean_A = Column(Integer, nullable=True)   # Agreeableness
+    ocean_N = Column(Integer, nullable=True)   # Neuroticism
+
     risk_scores = relationship("RiskScore", back_populates="user", cascade="all, delete-orphan")
     alerts = relationship("Alert", back_populates="user", cascade="all, delete-orphan")
+
 
 
 class DailyFeature(Base):

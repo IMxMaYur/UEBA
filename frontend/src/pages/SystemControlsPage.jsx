@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Settings2, Play, Upload, UserPlus, Trash2, RefreshCw, CheckCircle, XCircle, Activity } from 'lucide-react'
+import { Settings2, Play, Upload, UserPlus, Trash2, RefreshCw, CheckCircle, XCircle, Activity, Database } from 'lucide-react'
 import api from '../api'
-import { useAuth } from '../useAuth'
+
 
 function StatusPill({ ok }) {
   return ok
@@ -10,7 +10,6 @@ function StatusPill({ ok }) {
 }
 
 export default function SystemControlsPage() {
-  const { isAdmin } = useAuth()
   const [health, setHealth]         = useState(null)
   const [metrics, setMetrics]       = useState(null)
   const [runStatus, setRunStatus]   = useState(null)
@@ -21,14 +20,17 @@ export default function SystemControlsPage() {
   const [newUser, setNewUser]       = useState({ email: '', password: '', role: 'analyst' })
   const [saving, setSaving]         = useState(false)
   const [saveMsg, setSaveMsg]       = useState(null)
+  const [seeding, setSeeding]       = useState(false)
+  const [seedMsg, setSeedMsg]       = useState(null)
+  const [resetting, setResetting]   = useState(false)
+  const [resetMsg, setResetMsg]     = useState(null)
+  const [confirmReset, setConfirmReset] = useState(false)
 
   useEffect(() => {
     api.get('/health').then(r => setHealth(r.data)).catch(() => setHealth(null))
     api.get('/stats/model-metrics').then(r => setMetrics(r.data)).catch(() => setMetrics(null))
-    if (isAdmin) {
-      api.get('/users/').then(r => setUsers(r.data || [])).catch(() => setUsers([]))
-    }
-  }, [isAdmin])
+    api.get('/users?limit=100').then(r => setUsers(r.data || [])).catch(() => setUsers([]))
+  }, [])
 
   const runDetection = async () => {
     setRunning(true); setRunStatus(null)
@@ -39,6 +41,32 @@ export default function SystemControlsPage() {
       setRunStatus({ ok: false, msg: e.response?.data?.detail || 'Pipeline execution failed.' })
     }
     setRunning(false)
+  }
+
+  const seedUsers = async () => {
+    setSeeding(true); setSeedMsg(null)
+    try {
+      const r = await api.post('/seed/users')
+      setSeedMsg({ ok: true, msg: r.data?.message || 'Users seeded.' })
+      const u = await api.get('/users?limit=100')
+      setUsers(u.data || [])
+    } catch (e) {
+      setSeedMsg({ ok: false, msg: e.response?.data?.detail || 'Seed failed.' })
+    }
+    setSeeding(false)
+  }
+
+  const resetData = async () => {
+    setResetting(true); setResetMsg(null); setConfirmReset(false)
+    try {
+      const r = await api.post('/seed/reset')
+      setResetMsg({ ok: true, msg: r.data?.message || 'Reset complete.' })
+      // Refresh health
+      api.get('/stats/model-metrics').then(r => setMetrics(r.data)).catch(() => {})
+    } catch (e) {
+      setResetMsg({ ok: false, msg: e.response?.data?.detail || 'Reset failed.' })
+    }
+    setResetting(false)
   }
 
   const handleUpload = async (e) => {
@@ -179,7 +207,28 @@ export default function SystemControlsPage() {
         </div>
       </div>
 
+      {/* Seed CERT Users */}
+      <div className="card" style={{ marginBottom: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+          <Database size={15} color="#10b981" />
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>SEED CERT DATASET USERS</h3>
+        </div>
+        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
+          Import all ~1000 employees from the CERT Insider Threat Dataset r4.2 (logon.csv + psychometric.csv) into the User Registry.
+          Safe to run multiple times — existing records will be enriched, not duplicated.
+        </p>
+        <button onClick={seedUsers} disabled={seeding} className="btn btn-primary" style={{ fontSize: 12, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
+          {seeding ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Seeding users...</> : <><Database size={14} /> Seed CERT Users into Registry</>}
+        </button>
+        {seedMsg && (
+          <div style={{ marginTop: 12, fontSize: 12, padding: '8px 12px', borderRadius: 8, background: seedMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: seedMsg.ok ? '#10b981' : '#ef4444', border: `1px solid ${seedMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+            {seedMsg.ok ? '✅' : '❌'} {seedMsg.msg}
+          </div>
+        )}
+      </div>
+
       {/* User management */}
+
       <div className="card" style={{ padding: 0 }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <UserPlus size={15} color="#06b6d4" />

@@ -7,7 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.database import engine, SessionLocal
 from app.models.orm_models import Base
-from app.api import auth_router, users_router, alerts_router, stats_router, simulate_router, investigation_router
+from app.api import auth_router, users_router, alerts_router, stats_router, simulate_router, investigation_router, seed_router
 from app.services.auth_service import create_default_admin
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -37,6 +37,7 @@ app.include_router(alerts_router.router)
 app.include_router(stats_router.router)
 app.include_router(simulate_router.router)
 app.include_router(investigation_router.router)
+app.include_router(seed_router.router)
 
 
 @app.on_event("startup")

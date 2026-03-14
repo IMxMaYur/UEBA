@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   Shield, LayoutDashboard, Bell, Zap, LogOut, UserCircle,
   Users, TrendingUp, Network, AlertOctagon, FileBarChart,
-  Settings2, Settings, ChevronRight,
+  Settings2, ChevronRight,
 } from 'lucide-react'
 import { useAuth } from '../useAuth'
 import { useState, useEffect } from 'react'
@@ -10,31 +10,45 @@ import api from '../api'
 
 export default function Layout() {
   const navigate = useNavigate()
-  const { role, email, isAdmin } = useAuth()
+  const { role, email, isAdmin, isManager, isAnalyst, isViewer } = useAuth()
   const [alertCount, setAlertCount] = useState(0)
   const logout = () => { localStorage.removeItem('ueba_token'); navigate('/login') }
 
   useEffect(() => {
     api.get('/alerts?status=OPEN&limit=1')
       .then(r => {
-        // Try to get total from header or just show if any
         setAlertCount(r.data?.length > 0 ? '!' : 0)
       })
       .catch(() => {})
   }, [])
 
+  // Role-based visibility
+  // analyst: Dashboard, Alerts, Users, Behavior Analytics, Network Graph, Incidents
+  // manager: + Reports
+  // admin:   All of the above + Simulate + System Controls
+  // viewer:  Dashboard, Reports only
   const navItems = [
-    { to: '/dashboard',           icon: LayoutDashboard, label: 'Dashboard',          allowed: true        },
-    { to: '/alerts',              icon: Bell,            label: 'Alerts',              allowed: true,  badge: alertCount },
-    { to: '/users',               icon: Users,           label: 'Users',               allowed: true        },
-    { to: '/behavior-analytics',  icon: TrendingUp,      label: 'Behavior Analytics',  allowed: true        },
-    { to: '/network-graph',       icon: Network,         label: 'Network Graph',        allowed: true        },
-    { to: '/incidents',           icon: AlertOctagon,    label: 'Incidents',            allowed: true        },
-    { to: '/reports',             icon: FileBarChart,    label: 'Reports',              allowed: true        },
-    { to: '/simulate',            icon: Zap,             label: 'Simulate',             allowed: isAdmin     },
-    { to: '/system-controls',     icon: Settings2,       label: 'System Controls',      allowed: isAdmin     },
+    { to: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard',         allowed: true                              },
+    { to: '/alerts',             icon: Bell,            label: 'Alerts',             allowed: isAdmin || isManager || isAnalyst, badge: alertCount },
+    { to: '/users',              icon: Users,           label: 'Users',              allowed: isAdmin || isManager || isAnalyst },
+    { to: '/behavior-analytics', icon: TrendingUp,      label: 'Behavior Analytics', allowed: isAdmin || isAnalyst              },
+    { to: '/network-graph',      icon: Network,         label: 'Network Graph',      allowed: isAdmin || isAnalyst              },
+    { to: '/incidents',          icon: AlertOctagon,    label: 'Incidents',          allowed: isAdmin || isManager || isAnalyst },
+    { to: '/reports',            icon: FileBarChart,    label: 'Reports',            allowed: isAdmin || isManager              },
+    { to: '/simulate',           icon: Zap,             label: 'Simulate',           allowed: isAdmin                          },
+    { to: '/system-controls',    icon: Settings2,       label: 'System Controls',    allowed: isAdmin                          },
   ]
 
+  const monitoringItems  = navItems.slice(0, 3).filter(n => n.allowed)
+  const analyticsItems   = navItems.slice(3, 7).filter(n => n.allowed)
+  const adminItems       = navItems.slice(7).filter(n => n.allowed)
+
+  const roleLabels = {
+    admin:    'Administrator',
+    manager:  'Security Manager',
+    analyst:  'Security Analyst',
+    viewer:   'Executive Viewer',
+  }
   const roleColor = role === 'admin' ? '#8b5cf6' : role === 'manager' ? '#06b6d4' : role === 'analyst' ? '#3b82f6' : '#475569'
   const roleBg    = role === 'admin' ? 'rgba(139,92,246,0.15)' : role === 'manager' ? 'rgba(6,182,212,0.15)' : 'rgba(59,130,246,0.15)'
 
@@ -61,36 +75,44 @@ export default function Layout() {
         </div>
 
         {/* Section: MONITORING */}
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: 8, marginBottom: 6 }}>Monitoring</div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
-          {navItems.slice(0, 3).filter(n => n.allowed).map(({ to, icon: Icon, label, badge }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <Icon size={15} />
-              <span style={{ flex: 1 }}>{label}</span>
-              {badge ? (
-                <span style={{ fontSize: 9, fontWeight: 800, background: '#ef4444', color: 'white', borderRadius: 999, padding: '1px 6px' }}>{badge}</span>
-              ) : null}
-            </NavLink>
-          ))}
-        </nav>
+        {monitoringItems.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: 8, marginBottom: 6 }}>Monitoring</div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
+              {monitoringItems.map(({ to, icon: Icon, label, badge }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Icon size={15} />
+                  <span style={{ flex: 1 }}>{label}</span>
+                  {badge ? (
+                    <span style={{ fontSize: 9, fontWeight: 800, background: '#ef4444', color: 'white', borderRadius: 999, padding: '1px 6px' }}>{badge}</span>
+                  ) : null}
+                </NavLink>
+              ))}
+            </nav>
+          </>
+        )}
 
         {/* Section: ANALYTICS */}
-        <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: 8, marginBottom: 6 }}>Analytics</div>
-        <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
-          {navItems.slice(3, 7).filter(n => n.allowed).map(({ to, icon: Icon, label }) => (
-            <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
-              <Icon size={15} />
-              {label}
-            </NavLink>
-          ))}
-        </nav>
+        {analyticsItems.length > 0 && (
+          <>
+            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: 8, marginBottom: 6 }}>Analytics</div>
+            <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
+              {analyticsItems.map(({ to, icon: Icon, label }) => (
+                <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
+                  <Icon size={15} />
+                  {label}
+                </NavLink>
+              ))}
+            </nav>
+          </>
+        )}
 
-        {/* Section: ADMIN (only if isAdmin) */}
-        {isAdmin && (
+        {/* Section: ADMIN (only if admin) */}
+        {adminItems.length > 0 && (
           <>
             <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.1em', paddingLeft: 8, marginBottom: 6 }}>Administration</div>
             <nav style={{ display: 'flex', flexDirection: 'column', gap: 2, marginBottom: 16 }}>
-              {navItems.slice(7).filter(n => n.allowed).map(({ to, icon: Icon, label }) => (
+              {adminItems.map(({ to, icon: Icon, label }) => (
                 <NavLink key={to} to={to} className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}>
                   <Icon size={15} />
                   {label}
@@ -113,7 +135,7 @@ export default function Layout() {
                 padding: '1px 7px', borderRadius: 999,
                 background: roleBg, color: roleColor, border: `1px solid ${roleColor}40`,
               }}>
-                {role}
+                {roleLabels[role] || role}
               </span>
             </div>
           </div>
@@ -162,7 +184,7 @@ export default function Layout() {
 
           {/* Role badge */}
           <span style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', padding: '3px 10px', borderRadius: 999, background: roleBg, color: roleColor, border: `1px solid ${roleColor}40` }}>
-            {role}
+            {roleLabels[role] || role}
           </span>
 
           {/* Profile */}

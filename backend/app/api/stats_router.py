@@ -21,8 +21,8 @@ from app.config import settings
 
 router = APIRouter(prefix="/api/stats", tags=["stats"])
 
-# Path to the trained_models directory
-MODELS_DIR = Path(__file__).resolve().parents[3] / "trained_models"
+# Path to the trained_models directory (backend/trained_models/)
+MODELS_DIR = Path(__file__).resolve().parents[2] / "trained_models"
 
 # Optional Redis caching
 try:

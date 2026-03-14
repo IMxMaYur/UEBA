@@ -27,14 +27,14 @@ export default function App() {
         <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
           <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard"                    element={<DashboardPage />} />
-          <Route path="alerts"                       element={<AlertsPage />} />
-          <Route path="alerts/:alertId/investigate"  element={<InvestigationPage />} />
-          <Route path="users"                        element={<UsersPage />} />
-          <Route path="users/:userId"                element={<UserBehaviorPage />} />
-          <Route path="behavior-analytics"           element={<BehaviorAnalyticsPage />} />
-          <Route path="network-graph"                element={<NetworkGraphPage />} />
-          <Route path="incidents"                    element={<IncidentsPage />} />
-          <Route path="reports"                      element={<ReportsPage />} />
+          <Route path="alerts"                       element={<RoleGuard roles={['admin','manager','analyst']}><AlertsPage /></RoleGuard>} />
+          <Route path="alerts/:alertId/investigate"  element={<RoleGuard roles={['admin','manager','analyst']}><InvestigationPage /></RoleGuard>} />
+          <Route path="users"                        element={<RoleGuard roles={['admin','manager','analyst']}><UsersPage /></RoleGuard>} />
+          <Route path="users/:userId"                element={<RoleGuard roles={['admin','manager','analyst']}><UserBehaviorPage /></RoleGuard>} />
+          <Route path="behavior-analytics"           element={<RoleGuard roles={['admin','analyst']}><BehaviorAnalyticsPage /></RoleGuard>} />
+          <Route path="network-graph"                element={<RoleGuard roles={['admin','analyst']}><NetworkGraphPage /></RoleGuard>} />
+          <Route path="incidents"                    element={<RoleGuard roles={['admin','manager','analyst']}><IncidentsPage /></RoleGuard>} />
+          <Route path="reports"                      element={<RoleGuard roles={['admin','manager']}><ReportsPage /></RoleGuard>} />
           <Route path="simulate"                     element={<RoleGuard roles={['admin']}><SimulatePage /></RoleGuard>} />
           <Route path="system-controls"              element={<RoleGuard roles={['admin']}><SystemControlsPage /></RoleGuard>} />
         </Route>
