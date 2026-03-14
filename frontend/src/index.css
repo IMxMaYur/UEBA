@@ -95,3 +95,28 @@ body {
 .btn-ghost:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
 .btn-danger { background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); }
 .btn-danger:hover { background: rgba(239,68,68,0.25); }
+
+/* Normal / Info severity */
+.badge-normal { background: rgba(16,185,129,0.12); color: #10b981; border: 1px solid rgba(16,185,129,0.3); }
+.badge-info   { background: rgba(6,182,212,0.12);  color: #06b6d4; border: 1px solid rgba(6,182,212,0.3); }
+
+/* Top navigation bar */
+header.topbar { height: 54px; background: var(--bg-secondary); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 24px; gap: 16px; }
+
+/* Timeline connector line pulse */
+@keyframes dot-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+.timeline-dot-live { animation: dot-pulse 1.5s ease-in-out infinite; }
+
+/* Heatmap tile hover  */
+.heatmap-tile { transition: transform 0.15s ease, box-shadow 0.15s ease; }
+.heatmap-tile:hover { transform: translateY(-2px); }
+
+/* Spinner for loading states */
+@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+.spin { animation: spin 1s linear infinite; }
+
+/* Sidebar section heading */
+.sidebar-section-label { font-size: 10px; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.1em; padding: 0 8px 4px; }
+
+/* Network graph SVG background */
+.network-graph-svg { background: var(--bg-secondary); display: block; width: 100%; }

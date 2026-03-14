@@ -1,0 +1,52 @@
+Project Analysis Report: UEBA (User and Entity Behavior Analytics) Platform
+================================================================================
+
+1. Project Overview
+-------------------
+The platform is a full-stack, AI-powered Insider Threat Detection Platform designed to simulate an enterprise-grade cybersecurity product used by a Security Operations Center (SOC). 
+The core objective is to analyze enterprise user activity logs (logins, file accesses, USB events, HTTP communications) to build behavioral baselines. It uses machine learning models to detect anomalies and assigning computed risk scores to alert analysts of potential threats like data exfiltration or credential compromise.
+
+2. Repository Architecture
+--------------------------
+The repository is split into independent but communicative layers: `backend` (API & ML pipeline) and `frontend` (SOC Web Dashboard), along with a structural `plan.txt` containing design specification and attack simulation scenarios.
+
+3. Backend Service (Location: /backend)
+---------------------------------------
+Framework: Python (FastAPI).
+Database: Relational Database via SQLAlchemy (ORM configuration).
+
+Key Components:
+- Routing & APIs (`app/main.py`):
+  CORS is configured to accept frontend requests. API modules are separated structurally:
+  * auth_router: JWT based user authentication.
+  * users_router: Retrieval of employee logs and behavior profiling data.
+  * alerts_router: Endpoint for generating and fetching security alerts triggered by models.
+  * stats_router: Feeds telemetry to the frontend charts and visualizations.
+  * simulate_router: Implements "Attack Simulation Scenarios" (Data Exfiltration, Sabotage, Privilege Abuse).
+  * investigation_router: Specialized endpoint allowing analysts to query sequences of suspicious events.
+
+- Machine Learning Pipeline (`ml/`, `train_lstm_gnn.py`, `run_pipeline.py`):
+  Implements the anomaly detection algorithms as specified (Isolation forest, Autoencoders, LSTMs for sequences). 
+  It ingests the CERT dataset (found in `/Dataset`) to extract feature vectors, compute anomaly scores, normalize them, and serialize trained algorithms in `trained_models/`. 
+
+- Testing: Pytest configuration found under `tests/`.
+
+4. Frontend Security Dashboard (Location: /frontend)
+----------------------------------------------------
+Framework: React application using Vite.
+
+Key Components:
+- UI & Styling: Integrated with TailwindCSS for responsive layouts and modern design. Uses `lucide-react` for security-centric icons.
+- Data Visualization: Uses `chart.js` (wrapped by `react-chartjs-2`) and `d3.js` to render risk graphs, spike detection charts, and threat timelines.
+- Routing & Data Access: Built with `react-router-dom` for SPAs (Single Page Applications) and `axios` to cleanly communicate with the Python backend APIs.
+- Configuration: Setup includes extensive code linting tools with ESLint rules for modern React hooks.
+
+5. Current Operational Status
+-----------------------------
+The development environment is active.
+- The Backend server is being run natively in a Virtual Environment (venv) with hot-reloading (uvicorn app.main:app --reload).
+- The Frontend dashboard is hosted locally using Vite's development server (npm run dev).
+
+Conclusion
+----------
+The project successfully represents a strong modular architecture where Python-driven Data Science and high-performance Web APIs intersect with a dynamic, highly-visual React analytical dashboard. The codebase correctly conforms to the roadmap outlined in `plan.txt`.

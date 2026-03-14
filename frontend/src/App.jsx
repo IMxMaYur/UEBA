@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import Layout from './components/Layout'
+import RoleGuard from './components/RoleGuard'
 import LoginPage from './pages/LoginPage'
 import DashboardPage from './pages/DashboardPage'
 import AlertsPage from './pages/AlertsPage'
@@ -7,6 +8,11 @@ import UserBehaviorPage from './pages/UserBehaviorPage'
 import UsersPage from './pages/UsersPage'
 import SimulatePage from './pages/SimulatePage'
 import InvestigationPage from './pages/InvestigationPage'
+import BehaviorAnalyticsPage from './pages/BehaviorAnalyticsPage'
+import NetworkGraphPage from './pages/NetworkGraphPage'
+import IncidentsPage from './pages/IncidentsPage'
+import ReportsPage from './pages/ReportsPage'
+import SystemControlsPage from './pages/SystemControlsPage'
 
 function ProtectedRoute({ children }) {
   const token = localStorage.getItem('ueba_token')
@@ -25,7 +31,12 @@ export default function App() {
           <Route path="alerts/:alertId/investigate"  element={<InvestigationPage />} />
           <Route path="users"                        element={<UsersPage />} />
           <Route path="users/:userId"                element={<UserBehaviorPage />} />
-          <Route path="simulate"                     element={<SimulatePage />} />
+          <Route path="behavior-analytics"           element={<BehaviorAnalyticsPage />} />
+          <Route path="network-graph"                element={<NetworkGraphPage />} />
+          <Route path="incidents"                    element={<IncidentsPage />} />
+          <Route path="reports"                      element={<ReportsPage />} />
+          <Route path="simulate"                     element={<RoleGuard roles={['admin']}><SimulatePage /></RoleGuard>} />
+          <Route path="system-controls"              element={<RoleGuard roles={['admin']}><SystemControlsPage /></RoleGuard>} />
         </Route>
       </Routes>
     </BrowserRouter>

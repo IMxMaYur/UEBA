@@ -1,0 +1,976 @@
+Build a **production-grade cybersecurity dashboard UI** for an **AI-based Insider Threat Detection System** that analyzes behavioral logs from the CERT Insider Threat Dataset v4.2.
+
+The application should resemble a **Security Operations Center (SOC) analytics platform** used in enterprise cybersecurity environments such as UEBA and SIEM systems.
+
+The system must support **real-time monitoring, behavioral anomaly detection, risk analytics, investigation workflows, and role-based access control (RBAC).**
+
+---
+
+TECH STACK
+
+Frontend:
+
+* Next.js (React + App Router)
+* TypeScript
+* TailwindCSS
+* Recharts or Chart.js (analytics charts)
+* D3.js or Vis Network (graph visualization)
+* React Query / TanStack Query for API state
+* Zustand or Redux Toolkit for global state
+* WebSocket support for real-time alerts
+
+Backend (assumed):
+
+* REST API
+* Authentication using JWT
+* RBAC authorization layer
+* ML anomaly detection pipeline
+
+---
+
+UI DESIGN REQUIREMENTS
+
+Design a **dark-themed cybersecurity dashboard** similar to enterprise SOC consoles.
+
+UI characteristics:
+
+* Grid-based dashboard layout
+* Modular components
+* Reusable widgets
+* Real-time data updates
+* Clean professional design
+* Performance optimized
+
+Severity color conventions:
+
+Critical → red
+High → orange
+Medium → yellow
+Low → blue
+Normal → green
+
+---
+
+ROLE-BASED ACCESS CONTROL (RBAC)
+
+The dashboard must support four roles.
+
+Roles:
+
+1. Security Analyst
+   Primary SOC user responsible for monitoring and investigating alerts.
+
+Permissions:
+
+* View alerts
+* Investigate incidents
+* Analyze user behavior
+* Explore logs
+* View anomaly analytics
+
+2. Security Manager
+   Responsible for threat oversight and reporting.
+
+Permissions:
+
+* View all analyst data
+* Access department risk reports
+* View threat trends
+* Generate security reports
+
+3. System Administrator
+   Responsible for system configuration and data pipelines.
+
+Permissions:
+
+* Manage users and roles
+* Configure system
+* Run ML pipelines
+* Upload datasets
+* Monitor system health
+
+4. Executive Viewer (Read Only)
+   High-level leadership visibility.
+
+Permissions:
+
+* View security overview
+* View risk metrics
+* View reports
+
+The UI must dynamically **render dashboard components based on role permissions.**
+
+---
+
+APPLICATION LAYOUT
+
+Design a **SOC-style interface** with the following structure.
+
+Top Navigation Bar
+
+* system name
+* alert notifications
+* role indicator
+* user profile
+
+Left Sidebar Navigation
+
+Menu items:
+
+* Dashboard
+* Alerts
+* Users
+* Behavior Analytics
+* Network Graph
+* Incidents
+* Reports
+* System Controls (admin only)
+* Settings (admin only)
+
+---
+
+DASHBOARD PANELS
+
+1. Security Overview (KPI Panel)
+
+Display high-level system metrics.
+
+Metrics:
+
+* Total Employees
+* Active Users
+* Suspicious Users
+* Critical Alerts
+* Events Processed
+* Model Accuracy
+
+Visualizations:
+
+* KPI cards
+* anomaly trend line chart
+* event volume chart
+
+---
+
+2. Real-Time Threat Alert Feed
+
+Table displaying AI-detected anomalies.
+
+Columns:
+
+* timestamp
+* user id
+* activity type
+* anomaly score
+* severity
+* investigate button
+
+Features:
+
+* severity filtering
+* search
+* alert acknowledgement
+
+Example alert types:
+
+* USB data exfiltration
+* suspicious login
+* excessive file downloads
+* sensitive file access
+* abnormal working hours
+
+---
+
+3. User Risk Analytics (UEBA Panel)
+
+Display risk scores for employees.
+
+Visualizations:
+
+* risk leaderboard
+* user risk bar chart
+* anomaly score histogram
+
+Columns:
+
+* user
+* department
+* risk score
+* anomaly count
+* last activity
+
+---
+
+4. User Behavior Investigation Timeline
+
+When selecting a user, display chronological activity events.
+
+Events include:
+
+* login activity
+* file access
+* USB usage
+* web browsing
+* email activity
+
+Visualization:
+
+* interactive timeline
+* severity markers
+
+---
+
+5. Activity Monitoring Widgets
+
+Based on CERT dataset log sources.
+
+Widgets:
+
+Logon Monitoring
+
+* login frequency
+* unusual login detection
+
+USB Device Activity
+
+* device connection logs
+* file transfer counts
+* USB usage trends
+
+File Access Monitoring
+
+* sensitive file access
+* mass file access detection
+
+Web Activity Monitoring
+
+* visited domains
+* suspicious domain activity
+
+Email Communication
+
+* email interaction network
+
+---
+
+6. Network Interaction Graph
+
+Visualize relationships between:
+
+Nodes:
+
+* users
+* devices
+* files
+* domains
+
+Edges:
+
+* access
+* communication
+* data transfer
+
+Use a **force-directed graph layout** to detect suspicious clusters.
+
+---
+
+7. Behavioral Anomaly Visualization
+
+Display ML outputs.
+
+Charts:
+
+* anomaly score distribution
+* behavior cluster scatter plot
+* outlier detection visualization
+
+---
+
+8. Department Risk Heatmap
+
+Aggregate risk by department.
+
+Visualizations:
+
+* department anomaly heatmap
+* anomaly count bar chart
+
+---
+
+9. Incident Investigation Panel
+
+Detailed forensic investigation view.
+
+Display:
+
+* user profile
+* risk score explanation
+* related events
+* behavior timeline
+* anomaly reasons
+
+---
+
+10. Dataset Simulation Controls
+
+Allow demonstration of insider threat scenarios.
+
+Controls:
+
+* load dataset
+* run detection pipeline
+* simulate attack scenario
+
+Example scenarios:
+
+* data exfiltration via USB
+* disgruntled employee behavior
+* credential misuse
+
+---
+
+11. Report Generation Panel
+
+Export security analytics.
+
+Formats:
+
+* PDF
+* CSV
+* JSON
+
+Reports:
+
+* insider threat summary
+* risky user report
+* anomaly detection report
+
+---
+
+COMPONENT ARCHITECTURE
+
+Create reusable components.
+
+Components:
+
+DashboardLayout
+SidebarNavigation
+TopNavigationBar
+KPICard
+AlertTable
+RiskLeaderboard
+TimelineViewer
+ActivityChart
+HeatmapPanel
+NetworkGraph
+InvestigationPanel
+SimulationControls
+ReportDownloader
+RoleGuard (RBAC component)
+
+---
+
+API ENDPOINTS
+
+Assume backend endpoints.
+
+GET /api/alerts
+GET /api/users
+GET /api/risk-scores
+GET /api/activity-logs
+GET /api/anomalies
+GET /api/network-graph
+GET /api/reports
+
+Admin endpoints:
+
+POST /api/run-detection
+POST /api/upload-dataset
+POST /api/users
+DELETE /api/users
+
+---
+
+PERFORMANCE REQUIREMENTS
+
+* Lazy loading for charts
+* Virtualized log tables
+* Efficient state management
+* WebSocket alerts
+* Pagination for large logs
+
+---
+
+FINAL GOAL
+
+Create a **realistic enterprise cybersecurity dashboard UI** capable of:
+
+* monitoring insider threats
+* visualizing behavioral anomalies
+* analyzing risky users
+* investigating incidents
+* simulating insider threat scenarios
+* enforcing role-based access control
+Extend the AI Insider Threat Detection System by implementing a **User Behavioral Baseline Engine**.
+
+This module learns the **normal behavioral patterns of each employee** and detects deviations that may indicate insider threats.
+
+The system processes activity logs from the CERT Insider Threat Dataset v4.2 including:
+
+* logon events
+* file access logs
+* USB device usage
+* web browsing activity
+* email activity
+* user metadata (department, role)
+
+---
+
+OBJECTIVE
+
+Build a behavioral analytics engine that establishes **baseline activity profiles for every user** and continuously compares new activities against those baselines.
+
+The engine should generate **behavioral anomaly scores** used by the risk scoring system and security dashboard.
+
+---
+
+BEHAVIORAL FEATURES
+
+Extract behavioral features from activity logs.
+
+Examples:
+
+Login behavior
+
+* typical login time
+* typical logout time
+* login frequency
+* login device patterns
+
+File access behavior
+
+* average files accessed per day
+* sensitive file access frequency
+* file download patterns
+
+USB device behavior
+
+* USB usage frequency
+* average file transfer volume
+* USB usage time patterns
+
+Web browsing behavior
+
+* commonly visited domains
+* risky domain visits
+* cloud storage usage
+
+Email behavior
+
+* email communication frequency
+* external email interactions
+* unusual communication spikes
+
+---
+
+BASELINE MODEL
+
+For each user, compute a **behavioral baseline profile**.
+
+Example baseline structure:
+
+UserBaselineProfile
+
+* user_id
+* avg_login_hour
+* login_hour_variance
+* avg_files_accessed_daily
+* avg_usb_usage_frequency
+* common_domains
+* avg_email_count
+* department_norm_comparison
+
+The baseline should update periodically using historical logs.
+
+---
+
+BEHAVIOR DEVIATION DETECTION
+
+When new activity occurs, compare it against the user's baseline.
+
+Compute deviations such as:
+
+* login outside normal hours
+* excessive file access
+* abnormal USB transfers
+* unusual web domains
+* abnormal email activity
+
+Calculate a **behavioral anomaly score** between 0 and 1.
+
+Example logic:
+
+deviation_score = weighted_sum(
+login_deviation,
+file_access_deviation,
+usb_deviation,
+web_activity_deviation,
+email_deviation
+)
+
+---
+
+ANOMALY DETECTION MODELS
+
+Integrate machine learning models to detect outliers.
+
+Possible models:
+
+* Isolation Forest
+* Autoencoder
+* Local Outlier Factor
+* Statistical Z-score detection
+
+The system should combine **statistical baseline deviations with ML anomaly detection**.
+
+---
+
+RISK SCORE ENGINE
+
+Convert anomaly scores into a **user risk score**.
+
+Example risk calculation:
+
+RiskScore =
+0.3 × login_anomaly +
+0.25 × file_access_anomaly +
+0.2 × usb_anomaly +
+0.15 × web_anomaly +
+0.1 × email_anomaly
+
+Risk score range: 0–100
+
+Risk levels:
+
+0–30 → Normal
+30–60 → Suspicious
+60–80 → High Risk
+80–100 → Critical
+
+---
+
+BEHAVIORAL CLUSTERING
+
+Group employees with similar behavior patterns.
+
+Use clustering algorithms:
+
+* K-Means
+* DBSCAN
+
+Purpose:
+
+* detect users behaving differently from their peer group
+* identify outliers in departments
+
+---
+
+EXPLAINABLE ANOMALY OUTPUT
+
+For every anomaly detected, generate a **human-readable explanation**.
+
+Example output:
+
+User: U435
+Risk Score: 86
+
+Reasons:
+
+* login outside typical hours
+* accessed 5× more files than usual
+* copied files to USB
+* visited cloud storage websites
+
+---
+
+INTEGRATION WITH SECURITY DASHBOARD
+
+Provide API endpoints to the dashboard.
+
+Endpoints:
+
+GET /api/user-baseline/{user_id}
+GET /api/user-risk-scores
+GET /api/anomaly-events
+GET /api/behavior-deviation
+
+These APIs should power:
+
+* risk leaderboard
+* anomaly alerts
+* investigation panels
+* behavior timeline
+
+---
+
+DATA STORAGE
+
+Store behavioral profiles in a dedicated database table.
+
+Example schema:
+
+UserBehaviorBaseline
+
+* user_id
+* avg_login_hour
+* login_variance
+* avg_file_access
+* avg_usb_usage
+* avg_email_activity
+* baseline_last_updated
+
+AnomalyEvents
+
+* event_id
+* user_id
+* timestamp
+* anomaly_score
+* anomaly_type
+* explanation
+
+---
+
+MODEL PIPELINE
+
+Pipeline stages:
+
+1. ingest logs
+2. feature extraction
+3. baseline modeling
+4. anomaly detection
+5. risk scoring
+6. alert generation
+7. dashboard update
+
+---
+
+FINAL GOAL
+
+Create a behavioral analytics engine capable of:
+
+* learning normal employee behavior
+* detecting abnormal activity patterns
+* generating anomaly scores
+* producing explainable risk alerts
+* powering UEBA-style insider threat detection
+Extend the AI Insider Threat Detection System with an **Attack Pattern Correlation Engine** capable of detecting **multi-event insider threat scenarios**.
+
+The system must analyze activity logs from the CERT Insider Threat Dataset v4.2 and correlate sequences of suspicious events across multiple sources.
+
+Log sources include:
+
+* logon activity
+* file access logs
+* USB device activity
+* web browsing logs
+* email communication logs
+
+---
+
+OBJECTIVE
+
+Traditional anomaly detection detects **single unusual events**.
+
+The Attack Pattern Correlation Engine should detect **chains of events that together indicate a malicious insider attack**.
+
+Example:
+
+Login → Sensitive file access → USB copy → Cloud upload
+
+Even if each event alone is not highly anomalous, the **sequence of events may indicate data exfiltration**.
+
+The engine should detect such sequences and generate **high-confidence threat alerts**.
+
+---
+
+ATTACK PATTERN LIBRARY
+
+Define a library of insider threat patterns.
+
+Each pattern consists of a **sequence of events within a time window**.
+
+Example patterns:
+
+Data Exfiltration Pattern
+
+1. login
+2. access sensitive files
+3. copy files to USB
+4. visit cloud storage site
+
+Credential Misuse Pattern
+
+1. login from unusual time
+2. login from new device
+3. access privileged resources
+
+Disgruntled Employee Pattern
+
+1. excessive file downloads
+2. job search website visits
+3. email communication with external domains
+
+Privilege Abuse Pattern
+
+1. access admin resources
+2. modify sensitive files
+3. large data transfer
+
+---
+
+EVENT NORMALIZATION
+
+Convert raw logs into standardized events.
+
+Example normalized event schema:
+
+SecurityEvent
+
+* event_id
+* user_id
+* timestamp
+* event_type
+* resource
+* severity_score
+
+Event types may include:
+
+LOGIN
+FILE_ACCESS
+USB_CONNECT
+USB_COPY
+WEB_VISIT
+EMAIL_SEND
+
+---
+
+EVENT STREAM PROCESSING
+
+Process events in chronological order.
+
+Maintain a **sliding time window** for each user.
+
+Example window:
+
+30 minutes
+1 hour
+4 hours
+
+Within the window, analyze event sequences for suspicious patterns.
+
+---
+
+PATTERN MATCHING ENGINE
+
+Implement pattern detection using rule-based correlation.
+
+Example rule:
+
+IF
+LOGIN
+AND FILE_ACCESS (sensitive)
+AND USB_COPY
+WITHIN 30 minutes
+
+THEN
+
+Generate alert: "Potential Data Exfiltration"
+
+Each rule should include:
+
+* event sequence
+* time window
+* confidence score
+
+---
+
+TEMPORAL SEQUENCE ANALYSIS
+
+Use sequence modeling techniques to identify suspicious event chains.
+
+Possible methods:
+
+* Hidden Markov Models
+* Sequential pattern mining
+* LSTM sequence modeling
+* Markov chains
+
+These models should learn **normal activity sequences** and detect abnormal sequences.
+
+---
+
+CORRELATED THREAT SCORING
+
+Combine anomaly scores with sequence patterns.
+
+Example calculation:
+
+ThreatScore =
+0.4 × behavioral_anomaly_score +
+0.4 × sequence_pattern_score +
+0.2 × risk_baseline_score
+
+Threat score range: 0–100
+
+Threat levels:
+
+0–30 → Normal
+30–60 → Suspicious
+60–80 → High Risk
+80–100 → Critical Threat
+
+---
+
+ATTACK GRAPH CONSTRUCTION
+
+Build a graph representing correlated attack events.
+
+Nodes:
+
+* users
+* devices
+* files
+* domains
+
+Edges:
+
+* access
+* data transfer
+* communication
+
+Attack graphs help visualize **multi-step attack paths**.
+
+Example chain:
+
+User → Sensitive File → USB Device → Cloud Domain
+
+---
+
+ALERT GENERATION
+
+When a suspicious sequence is detected, generate an alert.
+
+Alert structure:
+
+ThreatAlert
+
+* alert_id
+* user_id
+* threat_score
+* pattern_detected
+* event_sequence
+* timestamp
+* explanation
+
+Example output:
+
+Alert: Data Exfiltration Suspected
+
+User: U435
+Threat Score: 92
+
+Sequence Detected:
+Login → Sensitive File Access → USB Copy → Cloud Upload
+
+Explanation:
+User accessed sensitive files and copied them to a USB device shortly before visiting a cloud storage domain.
+
+---
+
+DASHBOARD INTEGRATION
+
+Expose APIs for the security dashboard.
+
+Endpoints:
+
+GET /api/threat-patterns
+GET /api/correlated-alerts
+GET /api/attack-graph/{user_id}
+GET /api/event-sequences/{user_id}
+
+These APIs power:
+
+* correlated threat alerts
+* attack chain visualizations
+* investigation panels
+
+---
+
+VISUALIZATION SUPPORT
+
+Provide data for dashboard components.
+
+Visualizations include:
+
+Attack Chain Timeline
+Multi-event Threat Alerts
+Attack Graph Visualization
+Correlated Event Sequences
+
+Example timeline:
+
+09:02 login
+09:08 access confidential files
+09:10 copy files to USB
+09:15 visit cloud storage site
+
+---
+
+DATA STORAGE
+
+Create database tables for correlated threats.
+
+ThreatPatterns
+
+* pattern_id
+* pattern_name
+* event_sequence
+* time_window
+* severity_level
+
+CorrelatedAlerts
+
+* alert_id
+* user_id
+* pattern_detected
+* threat_score
+* timestamp
+
+---
+
+MODEL PIPELINE
+
+Pipeline stages:
+
+1. ingest activity logs
+2. normalize events
+3. detect behavioral anomalies
+4. analyze event sequences
+5. match attack patterns
+6. compute threat score
+7. generate alerts
+8. update dashboard
+
+---
+
+FINAL GOAL
+
+Create a correlation engine capable of:
+
+* detecting multi-step insider attack patterns
+* correlating events across multiple log sources
+* generating high-confidence threat alerts
+* visualizing attack chains
+* supporting SOC investigation workflows
+
+This engine should elevate the system from simple anomaly detection to **advanced insider threat detection with multi-event correlation**.
