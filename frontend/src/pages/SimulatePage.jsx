@@ -117,6 +117,7 @@ function ResultCard({ result, color, onViewUser }) {
 export default function SimulatePage() {
   const [results, setResults]   = useState({})
   const [loading, setLoading]   = useState({})
+  const [progress, setProgress] = useState({}) // scenario_mode -> 0-100
   const { isAdmin } = useAuth()
   const navigate    = useNavigate()
 
@@ -127,11 +128,25 @@ export default function SimulatePage() {
     const key = `${scenarioId}_${mode}`
     setLoad(scenarioId, mode, true)
     setResults(r => ({ ...r, [key]: null }))
+
+    // For CERT detect: simulate progressive loading (the real call takes a few seconds)
+    let pct = 0
+    let progressInterval = null
+    if (mode === 'cert') {
+      setProgress(p => ({ ...p, [key]: 0 }))
+      progressInterval = setInterval(() => {
+        pct = Math.min(pct + Math.random() * 12, 90)
+        setProgress(p => ({ ...p, [key]: Math.round(pct) }))
+      }, 300)
+    }
+
     try {
       const url = mode === 'cert' ? `/simulate/${scenarioId}/detect` : `/simulate/${scenarioId}`
       const { data } = await api.post(url)
+      if (progressInterval) { clearInterval(progressInterval); setProgress(p => ({ ...p, [key]: 100 })) }
       setResults(r => ({ ...r, [key]: { success: true, data } }))
     } catch (err) {
+      if (progressInterval) { clearInterval(progressInterval); setProgress(p => ({ ...p, [key]: 0 })) }
       setResults(r => ({ ...r, [key]: { success: false, error: err.response?.data?.detail || 'Failed' } }))
     } finally {
       setLoad(scenarioId, mode, false)
@@ -246,17 +261,32 @@ export default function SimulatePage() {
                 </button>
               </div>
 
+              {/* CERT detect with progress bar */}
+              {progress[`${scenario.id}_cert`] !== undefined && isLoad(scenario.id, 'cert') && (
+                <div style={{ marginTop: 12 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 4 }}>
+                    <span>Running ML models on CERT dataset…</span>
+                    <span>{progress[`${scenario.id}_cert`]}%</span>
+                  </div>
+                  <div style={{ height: 4, borderRadius: 2, background: 'var(--border)', overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${progress[`${scenario.id}_cert`]}%`, background: '#10b981', borderRadius: 2, transition: 'width 0.3s' }} />
+                  </div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>IF → AE → LSTM → GNN → scoring…</div>
+                </div>
+              )}
+
               {/* Results */}
               <ResultCard
                 result={synthResult}
                 color={scenario.color}
-                onViewUser={() => synthResult?.data?.user_id && navigate(`/users/${synthResult.data.user_id}`)}
+                onViewUser={() => synthResult?.data?.user_id && navigate(`/app/users/${synthResult.data.user_id}`)}
               />
               <ResultCard
                 result={certResult}
                 color="#10b981"
-                onViewUser={() => certResult?.data?.user_id && navigate(`/users/${certResult.data.user_id}`)}
+                onViewUser={() => certResult?.data?.user_id && navigate(`/app/users/${certResult.data.user_id}`)}
               />
+
             </div>
           )
         })}

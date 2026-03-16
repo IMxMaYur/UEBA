@@ -29,7 +29,7 @@ export default function SystemControlsPage() {
   useEffect(() => {
     api.get('/health').then(r => setHealth(r.data)).catch(() => setHealth(null))
     api.get('/stats/model-metrics').then(r => setMetrics(r.data)).catch(() => setMetrics(null))
-    api.get('/users?limit=100').then(r => setUsers(r.data || [])).catch(() => setUsers([]))
+    api.get('/auth/users').then(r => setUsers(r.data || [])).catch(() => setUsers([]))
   }, [])
 
   const runDetection = async () => {
@@ -89,10 +89,10 @@ export default function SystemControlsPage() {
     if (!newUser.email || !newUser.password) return
     setSaving(true); setSaveMsg(null)
     try {
-      await api.post('/auth/register', newUser)
-      setSaveMsg({ ok: true, msg: `User ${newUser.email} created.` })
+      await api.post(`/auth/register?role=${newUser.role}`, { email: newUser.email, password: newUser.password })
+      setSaveMsg({ ok: true, msg: `✅ User ${newUser.email} created with role '${newUser.role}'.` })
       setNewUser({ email: '', password: '', role: 'analyst' })
-      const r = await api.get('/users/')
+      const r = await api.get('/auth/users')
       setUsers(r.data || [])
     } catch (e) {
       setSaveMsg({ ok: false, msg: e.response?.data?.detail || 'Failed to create user.' })
@@ -100,11 +100,11 @@ export default function SystemControlsPage() {
     setSaving(false)
   }
 
-  const deleteUser = async (email) => {
-    if (!window.confirm(`Delete user ${email}?`)) return
+  const deleteUser = async (id) => {
+    if (!window.confirm(`Delete this user?`)) return
     try {
-      await api.delete(`/users/${email}`)
-      setUsers(u => u.filter(x => x.email !== email))
+      await api.delete(`/auth/users/${id}`)
+      setUsers(u => u.filter(x => x.id !== id))
     } catch (e) { console.error(e) }
   }
 
@@ -166,69 +166,41 @@ export default function SystemControlsPage() {
         )}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
-        {/* Run detection pipeline */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Play size={15} color="#3b82f6" />
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>RUN ML DETECTION PIPELINE</h3>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-            Trigger anomaly detection on current dataset. Scores and alerts will be updated in the dashboard.
-          </p>
-          <button onClick={runDetection} disabled={running} className="btn btn-primary" style={{ fontSize: 12 }}>
-            {running ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Running...</> : <><Play size={14} /> Run Detection Pipeline</>}
-          </button>
-          {runStatus && (
-            <div style={{ marginTop: 12, fontSize: 12, padding: '8px 12px', borderRadius: 8, background: runStatus.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: runStatus.ok ? '#10b981' : '#ef4444', border: `1px solid ${runStatus.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-              {runStatus.ok ? '✅' : '❌'} {runStatus.msg}
-            </div>
-          )}
-        </div>
 
-        {/* Dataset upload */}
-        <div className="card">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <Upload size={15} color="#8b5cf6" />
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>UPLOAD DATASET</h3>
-          </div>
-          <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-            Upload a CERT-format CSV file to update the detection dataset.
-          </p>
-          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: uploading ? 'wait' : 'pointer', border: '1px solid var(--border)', background: 'var(--bg-secondary)', color: 'var(--text-secondary)' }}>
-            <Upload size={13} /> {uploading ? 'Uploading...' : 'Choose CSV file'}
-            <input type="file" accept=".csv" onChange={handleUpload} hidden disabled={uploading} />
-          </label>
-          {uploadMsg && (
-            <div style={{ marginTop: 12, fontSize: 12, padding: '8px 12px', borderRadius: 8, background: uploadMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: uploadMsg.ok ? '#10b981' : '#ef4444', border: `1px solid ${uploadMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-              {uploadMsg.ok ? '✅' : '❌'} {uploadMsg.msg}
-            </div>
-          )}
-        </div>
-      </div>
 
-      {/* Seed CERT Users */}
+      {/* Fresh Start / Reset */}
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <Database size={15} color="#10b981" />
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>SEED CERT DATASET USERS</h3>
+          <Trash2 size={15} color="#ef4444" />
+          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>FRESH START / RESET</h3>
         </div>
         <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-          Import all ~1000 employees from the CERT Insider Threat Dataset r4.2 (logon.csv + psychometric.csv) into the User Registry.
-          Safe to run multiple times — existing records will be enriched, not duplicated.
+          Delete all existing data (users, alerts, logs, etc.) and reset the system to a fresh state.
+          This action is irreversible.
         </p>
-        <button onClick={seedUsers} disabled={seeding} className="btn btn-primary" style={{ fontSize: 12, background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.3)', color: '#10b981' }}>
-          {seeding ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Seeding users...</> : <><Database size={14} /> Seed CERT Users into Registry</>}
-        </button>
-        {seedMsg && (
-          <div style={{ marginTop: 12, fontSize: 12, padding: '8px 12px', borderRadius: 8, background: seedMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: seedMsg.ok ? '#10b981' : '#ef4444', border: `1px solid ${seedMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-            {seedMsg.ok ? '✅' : '❌'} {seedMsg.msg}
+        {!confirmReset ? (
+          <button onClick={() => setConfirmReset(true)} className="btn btn-danger" style={{ fontSize: 12 }}>
+            <Trash2 size={14} /> Reset All Data
+          </button>
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Are you sure?</span>
+            <button onClick={resetData} disabled={resetting} className="btn btn-danger" style={{ fontSize: 12 }}>
+              {resetting ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Resetting...</> : 'Yes, Reset Everything'}
+            </button>
+            <button onClick={() => setConfirmReset(false)} className="btn" style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
+              Cancel
+            </button>
+          </div>
+        )}
+        {resetMsg && (
+          <div style={{ marginTop: 12, fontSize: 12, padding: '8px 12px', borderRadius: 8, background: resetMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: resetMsg.ok ? '#10b981' : '#ef4444', border: `1px solid ${resetMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
+            {resetMsg.ok ? '✅' : '❌'} {resetMsg.msg}
           </div>
         )}
       </div>
 
       {/* User management */}
-
       <div className="card" style={{ padding: 0 }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <UserPlus size={15} color="#06b6d4" />
@@ -278,10 +250,10 @@ export default function SystemControlsPage() {
           </thead>
           <tbody>
             {users.length === 0 && (
-              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No users found.</td></tr>
+              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No dashboard users found.</td></tr>
             )}
             {users.map(u => (
-              <tr key={u.email}>
+              <tr key={u.id || u.email}>
                 <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{u.email}</td>
                 <td>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999,

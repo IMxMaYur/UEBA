@@ -2,7 +2,7 @@ Design and implement a **full-stack AI-powered Insider Threat Detection Platform
 
 The platform should follow a modular software engineering architecture similar to real User and Entity Behavior Analytics (UEBA) systems used in enterprise cybersecurity environments.
 
----
+--- venv\Scripts\uvicorn app.main:app --reload
 
 SYSTEM OBJECTIVE
 

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, Info, CheckCircle, Search, XCircle, MessageSquare, Send, Microscope } from 'lucide-react'
+import { Bell, ChevronDown, Info, CheckCircle, Search, XCircle, MessageSquare, Send, Microscope, Trash2 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../useAuth'
 
@@ -116,6 +116,13 @@ export default function AlertsPage() {
       fetchAlerts()
     } catch (e) { console.error(e) }
     finally { setBulking(false) }
+  }
+
+  const dismissAlert = async (id) => {
+    try {
+      await api.delete(`/alerts/${id}`)
+      setAlerts(prev => prev.filter(a => a.id !== id))
+    } catch (e) { console.error(e) }
   }
 
   const toggleSelect = (id) => setSelected(s => {
@@ -250,6 +257,13 @@ export default function AlertsPage() {
                         <XCircle size={12} /> False Positive
                       </button>
                     )}
+                    <button
+                      className="btn btn-ghost"
+                      style={{ fontSize: 11, padding: '4px 10px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
+                      onClick={() => dismissAlert(alert.id)}
+                      title="Dismiss from dashboard (keeps record in database)">
+                      <Trash2 size={12} /> Dismiss
+                    </button>
                   </div>
                   <ChevronDown size={16} color="var(--text-muted)" style={{ transform: expanded === alert.id ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
                 </div>
@@ -261,7 +275,8 @@ export default function AlertsPage() {
                       <button
                         className="btn btn-ghost"
                         style={{ fontSize: 12, color: '#8b5cf6', borderColor: 'rgba(139,92,246,0.3)' }}
-                        onClick={() => navigate(`/alerts/${alert.id}/investigate`)}
+                        onClick={() => navigate(`/app/alerts/${alert.id}/investigate`)}
+
                       >
                         <Microscope size={13} /> Full Investigation
                       </button>

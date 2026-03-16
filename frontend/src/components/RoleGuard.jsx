@@ -16,5 +16,6 @@ export default function RoleGuard({ roles = [], children }) {
 
   // Role not in allowed list → send to dashboard
   const allowed = roles.includes(role)
-  return allowed ? children : <Navigate to="/dashboard" replace />
+  return allowed ? children : <Navigate to="/app/dashboard" replace />
+
 }

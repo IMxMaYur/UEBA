@@ -13,6 +13,9 @@ from app.services.dependencies import get_current_auth_user
 
 router = APIRouter(prefix="/api/alerts", tags=["alerts"])
 
+# Statuses visible on dashboard (DISMISSED = hidden from normal views)
+ACTIVE_STATUSES = ["OPEN", "INVESTIGATING", "RESOLVED", "FALSE_POSITIVE"]
+
 
 @router.get("", response_model=List[AlertOut])
 def list_alerts(
@@ -26,10 +29,14 @@ def list_alerts(
     q = db.query(Alert)
     if status:
         q = q.filter(Alert.status == status.upper())
+    else:
+        # By default exclude DISMISSED alerts (soft-deleted from dashboard view)
+        q = q.filter(Alert.status != "DISMISSED")
     if severity:
         q = q.filter(Alert.severity == severity.upper())
     q = q.order_by(Alert.risk_score.desc(), Alert.created_at.desc())
     return q.offset(offset).limit(limit).all()
+
 
 
 @router.get("/{alert_id}", response_model=AlertOut)
@@ -133,3 +140,42 @@ def get_alert_summary(
         )
         for row in rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# DELETE /{alert_id}  – Soft-dismiss: hides from dashboard, keeps in DB
+# ---------------------------------------------------------------------------
+
+@router.delete("/{alert_id}", status_code=204)
+def dismiss_alert(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_auth_user),
+):
+    """
+    Soft-dismiss an alert: sets status to DISMISSED so it's hidden from
+    the dashboard view. The record is preserved in the database.
+    """
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail="Alert not found")
+    alert.status = "DISMISSED"
+    db.commit()
+
+
+# ---------------------------------------------------------------------------
+# DELETE /bulk/dismiss  – Bulk soft-dismiss
+# ---------------------------------------------------------------------------
+
+@router.delete("/bulk/dismiss", status_code=200)
+def bulk_dismiss_alerts(
+    alert_ids: list[int],
+    db: Session = Depends(get_db),
+    _=Depends(get_current_auth_user),
+):
+    """Soft-dismiss multiple alerts at once."""
+    db.query(Alert).filter(Alert.id.in_(alert_ids)).update(
+        {"status": "DISMISSED"}, synchronize_session="fetch"
+    )
+    db.commit()
+    return {"dismissed": len(alert_ids)}

@@ -1,0 +1,25 @@
+problems:
+
+1. when i run the frontend using npm run dev command it give me link and when i click on that link i redirect to dashboard, this is wrong i need to be redirect to login page but redirect to me directly admin roled dashboard.
+
+2. There is no options to delete old alerts. i want like when alerts happens it must save in db, so if i delete alerts from dashboard then it will delete from dashboard only not from db. other wise there will be too many alerts which we seen there.
+
+3. in dashboard section there is ML model performance, i already run the models and saved the values in metrics.json so why it not used those values and show output. Currently there is nothing, output is empty.
+
+4. in users section where user registry are there which is empty, there is zero users. i already say that use psychometric.csv for the details of that 1000 users like there is Employee name, user id and personality values OCEAN used those values and convert them into human readable information like explanation e.g this employee is ...
+
+5. i dont want network interaction graph so remove it. when we simulate the data then in Behaviour Analytics must get updated with there proper function and show data.
+
+6. in simulate section by using those two buttons like 1. synthetic and 2. cert detect, they must be work properly and when detection going on progress bar need to visible so atleast we get know that how much it done. when it detects it only select 1 top user, atleast top 5 users from that scenario needs to show.
+
+7. in system controls section there is system health part where ml models and api sever offline/online status shows, ML models is okay but why api server always show offline i dont get it that, what file i not run so that remain offline? 
+
+8. there is run ML detection pipeline which Trigger anomaly detection on current dataset. Scores and alerts will be updated in the dashboard, but we already doing this in simulate section where we trigger different scenarios and showing on dashboard. so why "run ML detection pipeline" button is there?
+
+there is one more button which is "UPLOAD DATASET
+Upload a CERT-format CSV file to update the detection dataset." no need of this button. dataset is already available in backend and we are not going to use any other different cert dataset or uploding any csv there. remove it.
+
+there is one more button which is "SEED CERT DATASET USERS
+Import all ~1000 employees from the CERT Insider Threat Dataset r4.2 (logon.csv + psychometric.csv) into the User Registry. Safe to run multiple times — existing records will be enriched, not duplicated." why i need to insert? you already have the psychometric.csv so use that and saved the details permanatly. remove this button also.
+
+9. user management section where i create new user with email and password and assign the role and when i click on create it says no user found. i want to create new user and assign them role. fix this problem. whenever i create new user for accessing this security dashborad then according to their roles they see the content, and saved the new user data in db like there email, pass and role so when they try to login it get verify.

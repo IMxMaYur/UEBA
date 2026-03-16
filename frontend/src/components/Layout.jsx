@@ -1,8 +1,8 @@
 import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   Shield, LayoutDashboard, Bell, Zap, LogOut, UserCircle,
-  Users, TrendingUp, Network, AlertOctagon, FileBarChart,
-  Settings2, ChevronRight,
+  Users, TrendingUp, AlertOctagon, FileBarChart,
+  Settings2,
 } from 'lucide-react'
 import { useAuth } from '../useAuth'
 import { useState, useEffect } from 'react'
@@ -28,20 +28,19 @@ export default function Layout() {
   // admin:   All of the above + Simulate + System Controls
   // viewer:  Dashboard, Reports only
   const navItems = [
-    { to: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard',         allowed: true                              },
-    { to: '/alerts',             icon: Bell,            label: 'Alerts',             allowed: isAdmin || isManager || isAnalyst, badge: alertCount },
-    { to: '/users',              icon: Users,           label: 'Users',              allowed: isAdmin || isManager || isAnalyst },
-    { to: '/behavior-analytics', icon: TrendingUp,      label: 'Behavior Analytics', allowed: isAdmin || isAnalyst              },
-    { to: '/network-graph',      icon: Network,         label: 'Network Graph',      allowed: isAdmin || isAnalyst              },
-    { to: '/incidents',          icon: AlertOctagon,    label: 'Incidents',          allowed: isAdmin || isManager || isAnalyst },
-    { to: '/reports',            icon: FileBarChart,    label: 'Reports',            allowed: isAdmin || isManager              },
-    { to: '/simulate',           icon: Zap,             label: 'Simulate',           allowed: isAdmin                          },
-    { to: '/system-controls',    icon: Settings2,       label: 'System Controls',    allowed: isAdmin                          },
+    { to: '/app/dashboard',          icon: LayoutDashboard, label: 'Dashboard',         allowed: true                              },
+    { to: '/app/alerts',             icon: Bell,            label: 'Alerts',             allowed: isAdmin || isManager || isAnalyst, badge: alertCount },
+    { to: '/app/users',              icon: Users,           label: 'Users',              allowed: isAdmin || isManager || isAnalyst },
+    { to: '/app/behavior-analytics', icon: TrendingUp,      label: 'Behavior Analytics', allowed: isAdmin || isAnalyst              },
+    { to: '/app/incidents',          icon: AlertOctagon,    label: 'Incidents',          allowed: isAdmin || isManager || isAnalyst },
+    { to: '/app/reports',            icon: FileBarChart,    label: 'Reports',            allowed: isAdmin || isManager              },
+    { to: '/app/simulate',           icon: Zap,             label: 'Simulate',           allowed: isAdmin                          },
+    { to: '/app/system-controls',    icon: Settings2,       label: 'System Controls',    allowed: isAdmin                          },
   ]
 
   const monitoringItems  = navItems.slice(0, 3).filter(n => n.allowed)
-  const analyticsItems   = navItems.slice(3, 7).filter(n => n.allowed)
-  const adminItems       = navItems.slice(7).filter(n => n.allowed)
+  const analyticsItems   = navItems.slice(3, 6).filter(n => n.allowed)
+  const adminItems       = navItems.slice(6).filter(n => n.allowed)
 
   const roleLabels = {
     admin:    'Administrator',
