@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Bell, ChevronDown, Info, CheckCircle, Search, XCircle, MessageSquare, Send, Microscope, Trash2 } from 'lucide-react'
+import { Bell, ChevronDown, Info, CheckCircle, Search, XCircle, MessageSquare, Send, Microscope, Trash2, Shield } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../useAuth'
 
@@ -107,6 +107,16 @@ export default function AlertsPage() {
     fetchAlerts()
   }
 
+  const deleteAlert = async (id) => {
+    if (!window.confirm('Permanently delete this alert? This cannot be undone.')) return
+    try {
+      await api.delete(`/alerts/${id}`)
+      setAlerts(prev => prev.filter(a => a.id !== id))
+      setSelected(s => { const n = new Set(s); n.delete(id); return n })
+      if (expanded === id) setExpanded(null)
+    } catch (e) { console.error(e) }
+  }
+
   const bulkUpdate = async () => {
     if (selected.size === 0) return
     setBulking(true)
@@ -116,13 +126,6 @@ export default function AlertsPage() {
       fetchAlerts()
     } catch (e) { console.error(e) }
     finally { setBulking(false) }
-  }
-
-  const dismissAlert = async (id) => {
-    try {
-      await api.delete(`/alerts/${id}`)
-      setAlerts(prev => prev.filter(a => a.id !== id))
-    } catch (e) { console.error(e) }
   }
 
   const toggleSelect = (id) => setSelected(s => {
@@ -171,6 +174,8 @@ export default function AlertsPage() {
             <option value="INVESTIGATING">Investigating</option>
             <option value="RESOLVED">Resolved</option>
             <option value="FALSE_POSITIVE">False Positive</option>
+            <option value="CONFIRMED_THREAT">Confirmed Threat</option>
+            <option value="BENIGN_MISTAKE">Benign Mistake</option>
           </select>
         </div>
       </div>
@@ -184,6 +189,8 @@ export default function AlertsPage() {
             <option value="RESOLVED">Mark Resolved</option>
             <option value="INVESTIGATING">Mark Investigating</option>
             <option value="FALSE_POSITIVE">Mark False Positive</option>
+            <option value="CONFIRMED_THREAT">Mark Confirmed Threat</option>
+            <option value="BENIGN_MISTAKE">Mark Benign Mistake</option>
             <option value="OPEN">Mark Open</option>
           </select>
           <button onClick={bulkUpdate} disabled={bulking} className="btn btn-primary" style={{ fontSize: 12, padding: '5px 14px' }}>
@@ -228,8 +235,8 @@ export default function AlertsPage() {
                       <span style={{ fontSize: 14, fontWeight: 700 }}>{alert.alert_type.replace(/_/g, ' ')}</span>
                       <span className={`badge badge-${alert.severity.toLowerCase()}`}>{alert.severity}</span>
                       <span style={{ fontSize: 11, padding: '2px 8px', borderRadius: 4,
-                        background: alert.status === 'OPEN' ? 'rgba(239,68,68,0.1)' : alert.status === 'INVESTIGATING' ? 'rgba(245,158,11,0.1)' : alert.status === 'FALSE_POSITIVE' ? 'rgba(100,116,139,0.1)' : 'rgba(16,185,129,0.1)',
-                        color: alert.status === 'OPEN' ? '#ef4444' : alert.status === 'INVESTIGATING' ? '#f59e0b' : alert.status === 'FALSE_POSITIVE' ? '#64748b' : '#10b981',
+                        background: alert.status === 'OPEN' ? 'rgba(239,68,68,0.1)' : alert.status === 'INVESTIGATING' ? 'rgba(245,158,11,0.1)' : alert.status === 'CONFIRMED_THREAT' ? 'rgba(220,38,38,0.1)' : alert.status === 'BENIGN_MISTAKE' ? 'rgba(56,189,248,0.1)' : alert.status === 'FALSE_POSITIVE' ? 'rgba(100,116,139,0.1)' : 'rgba(16,185,129,0.1)',
+                        color: alert.status === 'OPEN' ? '#ef4444' : alert.status === 'INVESTIGATING' ? '#f59e0b' : alert.status === 'CONFIRMED_THREAT' ? '#dc2626' : alert.status === 'BENIGN_MISTAKE' ? '#0ea5e9' : alert.status === 'FALSE_POSITIVE' ? '#64748b' : '#10b981',
                         fontWeight: 600 }}>
                         {alert.status.replace(/_/g, ' ')}
                       </span>
@@ -247,22 +254,26 @@ export default function AlertsPage() {
                         <Info size={12} /> Investigate
                       </button>
                     )}
-                    {alert.status !== 'RESOLVED' && alert.status !== 'FALSE_POSITIVE' && (
-                      <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px', color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }} onClick={() => updateStatus(alert.id, 'RESOLVED')}>
-                        <CheckCircle size={12} /> Resolve
-                      </button>
-                    )}
-                    {alert.status === 'OPEN' && (
-                      <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px', color: '#64748b', borderColor: 'rgba(100,116,139,0.3)' }} onClick={() => updateStatus(alert.id, 'FALSE_POSITIVE')}>
-                        <XCircle size={12} /> False Positive
-                      </button>
+                    {!['RESOLVED', 'CONFIRMED_THREAT', 'BENIGN_MISTAKE', 'FALSE_POSITIVE'].includes(alert.status) && (
+                      <>
+                        <button className="btn btn-ghost" title="Confirmed Threat" style={{ fontSize: 11, padding: '4px 10px', color: '#dc2626', borderColor: 'rgba(220,38,38,0.3)' }} onClick={() => updateStatus(alert.id, 'CONFIRMED_THREAT')}>
+                          <Shield size={12} /> Confirm
+                        </button>
+                        <button className="btn btn-ghost" title="Benign Mistake" style={{ fontSize: 11, padding: '4px 10px', color: '#0ea5e9', borderColor: 'rgba(14,165,233,0.3)' }} onClick={() => updateStatus(alert.id, 'BENIGN_MISTAKE')}>
+                          <CheckCircle size={12} /> Mistake
+                        </button>
+                        <button className="btn btn-ghost" title="False Positive" style={{ fontSize: 11, padding: '4px 10px', color: '#64748b', borderColor: 'rgba(100,116,139,0.3)' }} onClick={() => updateStatus(alert.id, 'FALSE_POSITIVE')}>
+                          <XCircle size={12} /> FP
+                        </button>
+                      </>
                     )}
                     <button
                       className="btn btn-ghost"
-                      style={{ fontSize: 11, padding: '4px 10px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }}
-                      onClick={() => dismissAlert(alert.id)}
-                      title="Dismiss from dashboard (keeps record in database)">
-                      <Trash2 size={12} /> Dismiss
+                      title="Permanently delete alert"
+                      style={{ fontSize: 11, padding: '4px 8px', color: '#ef4444', borderColor: 'rgba(239,68,68,0.25)' }}
+                      onClick={() => deleteAlert(alert.id)}
+                    >
+                      <Trash2 size={12} />
                     </button>
                   </div>
                   <ChevronDown size={16} color="var(--text-muted)" style={{ transform: expanded === alert.id ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s' }} />
@@ -275,8 +286,7 @@ export default function AlertsPage() {
                       <button
                         className="btn btn-ghost"
                         style={{ fontSize: 12, color: '#8b5cf6', borderColor: 'rgba(139,92,246,0.3)' }}
-                        onClick={() => navigate(`/app/alerts/${alert.id}/investigate`)}
-
+                        onClick={() => navigate(`/alerts/${alert.id}/investigate`)}
                       >
                         <Microscope size={13} /> Full Investigation
                       </button>

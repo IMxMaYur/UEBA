@@ -50,9 +50,10 @@ def _get_feature_matrix(df: pd.DataFrame) -> np.ndarray:
 
 def train(
     feature_matrix: pd.DataFrame,
-    contamination: float = 0.02,
-    n_estimators: int = 200,
+    contamination: float = None,
+    n_estimators: int = 300,
     random_state: int = 42,
+    labels: pd.Series = None,
 ) -> Tuple[IsolationForest, StandardScaler]:
     """
     Train an Isolation Forest on the full feature matrix.
@@ -60,9 +61,29 @@ def train(
     Parameters
     ----------
     feature_matrix : Feature matrix from behavior_profiler output.
-    contamination  : Expected fraction of anomalies (≈ CERT threat rate).
+    contamination  : Expected fraction of anomalies. Auto-computed from labels if provided.
+    labels         : Ground-truth binary labels (0=benign, 1=threat) for auto-contamination.
     """
     logger.info("Training Isolation Forest ...")
+
+    # ── Auto-compute contamination from labels (handles severe class imbalance) ─
+    if contamination is None:
+        if labels is not None and len(labels) > 0:
+            threat_rate = float(labels.sum()) / len(labels)
+            # Clamp between 0.001 and 0.5 (IsolationForest limits)
+            contamination = float(np.clip(threat_rate, 0.001, 0.5))
+            logger.info(f"  → Auto-contamination from labels: {contamination:.4f} ({threat_rate*100:.2f}% threats)")
+        else:
+            contamination = 0.02   # fallback default
+            logger.info(f"  → Using default contamination: {contamination}")
+
+    # ── Active Learning: exclude analyst-confirmed false positives ───────────
+    if "is_false_positive" in feature_matrix.columns:
+        fp_count = feature_matrix["is_false_positive"].sum()
+        if fp_count > 0:
+            logger.info(f"  → Excluding {fp_count:,} analyst-confirmed false positive rows from training.")
+            feature_matrix = feature_matrix[~feature_matrix["is_false_positive"].fillna(False)]
+
     X = _get_feature_matrix(feature_matrix)
 
     scaler = StandardScaler()
@@ -71,6 +92,7 @@ def train(
     model = IsolationForest(
         n_estimators=n_estimators,
         contamination=contamination,
+        max_samples="auto",
         random_state=random_state,
         n_jobs=-1,
     )
@@ -78,7 +100,7 @@ def train(
 
     joblib.dump(model, IF_MODEL_PATH)
     joblib.dump(scaler, IF_SCALER_PATH)
-    logger.info(f"  → Isolation Forest saved to {IF_MODEL_PATH}")
+    logger.info(f"  → Isolation Forest saved to {IF_MODEL_PATH}  (contamination={contamination:.4f})")
     return model, scaler
 
 

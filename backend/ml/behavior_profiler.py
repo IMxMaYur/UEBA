@@ -101,3 +101,63 @@ def get_user_baseline(
                 "max": float(user_df[feat].max()),
             }
     return baseline
+
+
+def compute_peer_group_zscore(
+    feature_matrix: pd.DataFrame,
+    user_dept_map: dict,
+) -> pd.DataFrame:
+    """
+    Compare each user's daily feature values against the daily distribution
+    of all users in the *same department* (peer group).
+
+    Parameters
+    ----------
+    feature_matrix : Behaviour feature matrix (output of compute_zscore_features).
+    user_dept_map  : dict mapping user_id -> department string.
+                     e.g. {"ACM2278": "Finance", "BDT3275": "IT"}
+
+    Returns
+    -------
+    feature_matrix with added peer_risk_score column (0-1, higher = more
+    anomalous compared to today's department peers).
+    """
+    logger.info("Computing peer-group anomaly scores ...")
+    df = feature_matrix.copy()
+
+    # Map department onto each row
+    df["_dept"] = df["user"].map(user_dept_map).fillna("UNKNOWN")
+
+    peer_scores = []
+    for _, group in df.groupby(["_dept", "date"]):
+        for feat in ZSCORE_FEATURES:
+            if feat not in group.columns:
+                continue
+            grp_mean = group[feat].mean()
+            grp_std  = group[feat].std()
+            if grp_std and grp_std > 0:
+                group = group.copy()
+                group[f"{feat}_peer_z"] = (group[feat] - grp_mean) / grp_std
+            else:
+                group[f"{feat}_peer_z"] = 0.0
+
+        peer_z_cols = [f"{f}_peer_z" for f in ZSCORE_FEATURES if f"{f}_peer_z" in group.columns]
+        if peer_z_cols:
+            # Peer risk = mean absolute peer z-scores, clipped to [0,1]
+            group["peer_risk_score"] = (
+                group[peer_z_cols].abs().mean(axis=1) / 5.0
+            ).clip(0.0, 1.0)
+        else:
+            group["peer_risk_score"] = 0.0
+
+        peer_scores.append(group[["peer_risk_score"]])
+
+    if peer_scores:
+        peer_df = pd.concat(peer_scores).reindex(df.index).fillna(0.0)
+        df["peer_risk_score"] = peer_df["peer_risk_score"]
+    else:
+        df["peer_risk_score"] = 0.0
+
+    df.drop(columns=["_dept"], inplace=True, errors="ignore")
+    logger.info("  → peer_risk_score column added.")
+    return df

@@ -356,7 +356,7 @@ def add_investigation_note(
 # PATCH /alerts/{alert_id}/status  – Update alert status
 # ---------------------------------------------------------------------------
 
-VALID_STATUSES = {"OPEN", "INVESTIGATING", "RESOLVED", "FALSE_POSITIVE"}
+VALID_STATUSES = {"OPEN", "INVESTIGATING", "RESOLVED", "FALSE_POSITIVE", "CONFIRMED_THREAT", "BENIGN_MISTAKE"}
 
 
 @router.patch("/alerts/{alert_id}/status", response_model=AlertOut)
@@ -393,7 +393,317 @@ def update_alert_status(
         change_note += f" — Reason: {reason.strip()}"
     alert.notes = (alert.notes + "\n" + change_note) if alert.notes else change_note
 
+    # ── False-Positive Feedback Loop ──────────────────────────────────────
+    # Tag the feature vector row so next pipeline retraining excludes it.
+    if status_upper == "FALSE_POSITIVE":
+        daily = (
+            db.query(DailyFeature)
+            .filter(
+                DailyFeature.user_id == alert.user_id,
+                DailyFeature.date == alert.date,
+            )
+            .first()
+        )
+        if daily:
+            daily.is_false_positive = True
+            logger.info(
+                f"Feedback loop: marked DailyFeature (user={alert.user_id}, "
+                f"date={alert.date}) as false positive for future retraining."
+            )
+
     db.commit()
     db.refresh(alert)
     logger.info(f"Alert {alert_id} status updated: {old_status} → {status_upper}")
     return alert
+
+
+
+# ---------------------------------------------------------------------------
+# GET /alerts/{alert_id}/report.pdf  – Export PDF forensic incident report
+# ---------------------------------------------------------------------------
+
+@router.get("/alerts/{alert_id}/report.pdf")
+def export_pdf_report(
+    alert_id: int,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_auth_user),
+):
+    """
+    Generate a professional PDF incident report for an alert.
+    Includes: alert metadata, user profile, SHAP explanation,
+    AI narrative, model scores, and analyst notes.
+    """
+    from fastapi.responses import Response
+    import io
+
+    alert = db.query(Alert).filter(Alert.id == alert_id).first()
+    if not alert:
+        raise HTTPException(status_code=404, detail=f"Alert {alert_id} not found")
+
+    user = db.query(User).filter(User.id == alert.user_id).first()
+    risk_score_row = (
+        db.query(RiskScore)
+        .filter(RiskScore.user_id == alert.user_id, RiskScore.date == alert.date)
+        .first()
+    )
+
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib import colors
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.units import cm
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
+    except ImportError:
+        raise HTTPException(
+            status_code=503,
+            detail="PDF generation unavailable. Install reportlab: pip install reportlab"
+        )
+
+    buffer = io.BytesIO()
+    doc = SimpleDocTemplate(buffer, pagesize=A4,
+                            leftMargin=2*cm, rightMargin=2*cm,
+                            topMargin=2*cm, bottomMargin=2*cm)
+    styles = getSampleStyleSheet()
+
+    # Custom styles
+    title_style = ParagraphStyle('TitleStyle', parent=styles['Title'],
+                                  fontSize=20, textColor=colors.HexColor('#1e3a5f'),
+                                  spaceAfter=6, fontName='Helvetica-Bold')
+    h2_style = ParagraphStyle('H2Style', parent=styles['Heading2'],
+                               fontSize=13, textColor=colors.HexColor('#2563eb'),
+                               spaceBefore=14, spaceAfter=4, fontName='Helvetica-Bold')
+    body_style = ParagraphStyle('BodyStyle', parent=styles['Normal'],
+                                 fontSize=10, leading=14, textColor=colors.HexColor('#374151'))
+    label_style = ParagraphStyle('LabelStyle', parent=styles['Normal'],
+                                  fontSize=9, textColor=colors.HexColor('#6b7280'),
+                                  fontName='Helvetica')
+    critical_style = ParagraphStyle('CriticalStyle', parent=styles['Normal'],
+                                     fontSize=10, textColor=colors.HexColor('#dc2626'),
+                                     fontName='Helvetica-Bold')
+
+    now_str = datetime.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    sev = alert.severity.upper()
+    sev_color = ({'CRITICAL': '#dc2626', 'HIGH': '#d97706', 'MEDIUM': '#3b82f6', 'LOW': '#10b981'}
+                 .get(sev, '#374151'))
+
+    story = []
+
+    # ── Header ───────────────────────────────────────────────────────────────
+    story.append(Paragraph("UEBA INSIDER THREAT DETECTION PLATFORM", title_style))
+    story.append(Paragraph("Forensic Incident Report  ·  CONFIDENTIAL", label_style))
+    story.append(Spacer(1, 8))
+    story.append(HRFlowable(width="100%", thickness=2, color=colors.HexColor('#2563eb')))
+    story.append(Spacer(1, 12))
+
+    # ── Alert ID badge  ───────────────────────────────────────────────────────
+    badge_data = [[
+        f"ALERT #{alert.id}",
+        f"TYPE: {alert.alert_type.replace('_', ' ')}",
+        f"SEVERITY: {sev}",
+        f"STATUS: {alert.status}",
+    ]]
+    badge_table = Table(badge_data, colWidths=[3.5*cm, 5.5*cm, 4*cm, 4*cm])
+    badge_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1e3a5f')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
+        ('PADDING', (0, 0), (-1, 0), 8),
+        ('ROUNDEDCORNERS', [4, 4, 4, 4]),
+    ]))
+    story.append(badge_table)
+    story.append(Spacer(1, 16))
+
+    # ── Alert Summary ─────────────────────────────────────────────────────────
+    story.append(Paragraph("ALERT SUMMARY", h2_style))
+    summary_data = [
+        ["Report Generated", now_str],
+        ["Alert Date", str(alert.date)],
+        ["User ID", alert.user_id],
+        ["User Name", (user.name or "—") if user else "—"],
+        ["Department", (user.department or "—") if user else "—"],
+        ["Risk Score", f"{(alert.risk_score or 0) * 100:.1f}%"],
+        ["Alert Type", alert.alert_type.replace('_', ' ')],
+        ["Severity", sev],
+        ["Status", alert.status.replace('_', ' ')],
+    ]
+    sum_table = Table(summary_data, colWidths=[5*cm, 12*cm])
+    sum_table.setStyle(TableStyle([
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('TEXTCOLOR', (0, 0), (0, -1), colors.HexColor('#6b7280')),
+        ('TEXTCOLOR', (1, 0), (1, -1), colors.HexColor('#111827')),
+        ('ROWBACKGROUNDS', (0, 0), (-1, -1), [colors.HexColor('#f9fafb'), colors.white]),
+        ('PADDING', (0, 0), (-1, -1), 5),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+    ]))
+    story.append(sum_table)
+    story.append(Spacer(1, 4))
+
+    # ── AI Narrative ──────────────────────────────────────────────────────────
+    if alert.narrative:
+        story.append(Paragraph("AI ANALYSIS NARRATIVE", h2_style))
+        story.append(Paragraph(alert.narrative, body_style))
+        story.append(Spacer(1, 4))
+
+    # ── SHAP Explanation ──────────────────────────────────────────────────────
+    if alert.shap_json:
+        story.append(Paragraph("SHAP FEATURE IMPORTANCE", h2_style))
+        shap_data = [["Feature", "Observed Value", "SHAP Impact", "Direction"]]
+        for f in alert.shap_json:
+            shap_data.append([
+                f.get("friendly_name", f.get("feature", "")),
+                str(round(float(f.get("value", 0)), 3)),
+                str(round(abs(float(f.get("shap_value", 0))), 4)),
+                "↑ Increases Risk" if f.get("direction") == "increases_risk" else "↓ Reduces Risk",
+            ])
+        shap_table = Table(shap_data, colWidths=[7*cm, 3.5*cm, 3.5*cm, 3*cm])
+        shap_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#f9fafb'), colors.white]),
+            ('PADDING', (0, 0), (-1, -1), 5),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ]))
+        story.append(shap_table)
+        story.append(Spacer(1, 4))
+
+    # ── ML Model Scores ───────────────────────────────────────────────────────
+    if risk_score_row:
+        story.append(Paragraph("ML MODEL SCORE BREAKDOWN", h2_style))
+        model_data = [["Model", "Score"]]
+        for label, score in [
+            ("Isolation Forest", risk_score_row.if_score),
+            ("Autoencoder", risk_score_row.ae_score),
+            ("LSTM", risk_score_row.lstm_score),
+            ("GNN", risk_score_row.gnn_score),
+            ("Rule-Based", risk_score_row.rule_score),
+            ("Composite Risk Score", risk_score_row.risk_score),
+        ]:
+            model_data.append([label, f"{(score or 0) * 100:.1f}%"])
+        model_table = Table(model_data, colWidths=[8*cm, 4*cm])
+        model_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#2563eb')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.HexColor('#f9fafb'), colors.white]),
+            ('FONTNAME', (0, -1), (-1, -1), 'Helvetica-Bold'),
+            ('PADDING', (0, 0), (-1, -1), 5),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e5e7eb')),
+        ]))
+        story.append(model_table)
+        story.append(Spacer(1, 4))
+
+    # ── Analyst Notes ─────────────────────────────────────────────────────────
+    if alert.notes:
+        story.append(Paragraph("ANALYST NOTES & AUDIT TRAIL", h2_style))
+        story.append(Paragraph(alert.notes.replace('\n', '<br/>'), body_style))
+        story.append(Spacer(1, 4))
+
+    # ── Footer ────────────────────────────────────────────────────────────────
+    story.append(Spacer(1, 16))
+    story.append(HRFlowable(width="100%", thickness=1, color=colors.HexColor('#d1d5db')))
+    story.append(Spacer(1, 6))
+    story.append(Paragraph(
+        f"Generated by UEBA Insider Threat Detection Platform v2.0  ·  {now_str}  ·  CONFIDENTIAL",
+        label_style,
+    ))
+
+    doc.build(story)
+    buffer.seek(0)
+    pdf_bytes = buffer.read()
+
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=ueba_alert_{alert_id}_report.pdf",
+            "Content-Length": str(len(pdf_bytes)),
+        },
+    )
+
+
+# ---------------------------------------------------------------------------
+# GET /graph  – Knowledge Graph entity-relationship data
+# ---------------------------------------------------------------------------
+
+@router.get("/graph")
+def get_knowledge_graph(
+    user_id: Optional[str] = None,
+    alert_id: Optional[int] = None,
+    db: Session = Depends(get_db),
+    _=Depends(get_current_auth_user),
+):
+    """
+    Build an entity-relationship graph for a user or alert.
+    Returns nodes (User, PC, USB, ExternalEmail, IP) and edges for
+    visualization in the KnowledgeGraphPage.
+    """
+    # Resolve user from alert if alert_id provided
+    if alert_id and not user_id:
+        alert = db.query(Alert).filter(Alert.id == alert_id).first()
+        if alert:
+            user_id = alert.user_id
+
+    if not user_id:
+        raise HTTPException(status_code=400, detail="Provide user_id or alert_id")
+
+    user: Optional[User] = db.query(User).filter(User.id == user_id).first()
+    risk_score = user.latest_risk_score if user else 0.0
+    user_name  = user.name if user else user_id
+
+    # Aggregate DailyFeature records for this user
+    features = (
+        db.query(DailyFeature)
+        .filter(DailyFeature.user_id == user_id)
+        .order_by(DailyFeature.date.desc())
+        .limit(30)
+        .all()
+    )
+
+    # Build synthetic PC list from unique_pcs count
+    max_pcs = int(max((f.unique_pcs or 0) for f in features)) if features else 1
+    pcs = [{"id": f"PC-{user_id}-{i+1}", "logon_count": 1} for i in range(min(max_pcs, 8))]
+
+    # USB: from usb_connect_count
+    total_usb = int(sum((f.usb_connect_count or 0) for f in features))
+    usb_devices = [f"USB-{i+1}" for i in range(min(total_usb, 5))]
+
+    # External emails: from external_email_ratio
+    avg_ext = (sum((f.external_email_ratio or 0) for f in features) / max(len(features), 1))
+    # Generate synthetic external email domains based on ratio
+    ext_email_count = min(int(avg_ext * 10), 6)
+    domains = ["gmail.com", "yahoo.com", "protonmail.com", "outlook.com", "tutanota.com", "dropbox.com"]
+    external_emails = [f"{user_id.lower()}@{domains[i % len(domains)]}" for i in range(ext_email_count)]
+
+    # External IPs from augmented logon data (brute force / impossible travel flags)
+    external_ips = []
+    # Check alert notes for geo details
+    alerts = db.query(Alert).filter(Alert.user_id == user_id).all()
+    for a in alerts:
+        if a.geo_details:
+            ip = a.geo_details.get("city_b", "")
+            if ip:
+                external_ips.append(f"IP:{ip}")
+
+    return {
+        "user_id":       user_id,
+        "user_name":     user_name,
+        "risk_score":    round(risk_score, 3),
+        "pcs":           pcs,
+        "usb_devices":   usb_devices,
+        "external_emails": external_emails,
+        "external_ips":  external_ips[:4],
+        "summary": {
+            "total_days_analyzed": len(features),
+            "max_pcs_accessed":    max_pcs,
+            "total_usb_events":    total_usb,
+            "avg_external_email_ratio": round(avg_ext, 3),
+        }
+    }
+

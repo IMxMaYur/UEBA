@@ -1,4 +1,4 @@
-// useAuth.js – decodes JWT from localStorage to get role
+// useAuth.js – decodes JWT from sessionStorage to get role
 // Fixes base64-padding issue that caused atob() to throw and sign out users
 
 function safeBase64Decode(str) {
@@ -14,7 +14,7 @@ function safeBase64Decode(str) {
 }
 
 export function useAuth() {
-  const token = localStorage.getItem('ueba_token')
+  const token = sessionStorage.getItem('ueba_token')
   if (!token) return { role: null, email: null, isAdmin: false, isManager: false, isViewer: false }
 
   const parts = token.split('.')

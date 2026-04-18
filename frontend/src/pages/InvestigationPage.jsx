@@ -7,11 +7,12 @@ import {
 import { Bar } from 'react-chartjs-2'
 import {
   ArrowLeft, Microscope, Clock, FileText, Shield,
-  AlertTriangle, MessageSquare, Send, CheckCircle, XCircle, Share2,
+  AlertTriangle, MessageSquare, Send, CheckCircle, XCircle, Share2, Download, GitBranch,
 } from 'lucide-react'
 import api from '../api'
 import { useAuth } from '../useAuth'
-import NetworkGraph from '../components/NetworkGraph'
+
+import PlaybookResponsePanel from '../components/PlaybookResponsePanel'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Tooltip, Legend)
 
@@ -134,14 +135,21 @@ export default function InvestigationPage() {
               <span className={`badge badge-${detail.severity.toLowerCase()}`}>{detail.severity}</span>
               <span style={{
                 fontSize: 11, padding: '2px 10px', borderRadius: 20, fontWeight: 700,
-                background: detail.status === 'OPEN' ? 'rgba(239,68,68,0.12)' : detail.status === 'INVESTIGATING' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)',
-                color: detail.status === 'OPEN' ? '#ef4444' : detail.status === 'INVESTIGATING' ? '#f59e0b' : '#10b981',
+                background: detail.status === 'OPEN' ? 'rgba(239,68,68,0.12)' : detail.status === 'INVESTIGATING' ? 'rgba(245,158,11,0.12)' : detail.status === 'CONFIRMED_THREAT' ? 'rgba(220,38,38,0.12)' : detail.status === 'BENIGN_MISTAKE' ? 'rgba(56,189,248,0.12)' : detail.status === 'FALSE_POSITIVE' ? 'rgba(100,116,139,0.12)' : 'rgba(16,185,129,0.12)',
+                color: detail.status === 'OPEN' ? '#ef4444' : detail.status === 'INVESTIGATING' ? '#f59e0b' : detail.status === 'CONFIRMED_THREAT' ? '#dc2626' : detail.status === 'BENIGN_MISTAKE' ? '#0ea5e9' : detail.status === 'FALSE_POSITIVE' ? '#64748b' : '#10b981',
               }}>{detail.status.replace(/_/g,' ')}</span>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>
               User: <span style={{ fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)', fontWeight: 600 }}>{detail.user_id}</span>
               &nbsp;·&nbsp;Date: {detail.date}
               &nbsp;·&nbsp;Alert ID: #{detail.id}
+              &nbsp;·&nbsp;
+              <span
+                onClick={() => navigate(`/graph/${detail.user_id}?alert_id=${detail.id}`)}
+                style={{ color: '#8b5cf6', cursor: 'pointer', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                <GitBranch size={12} /> View Knowledge Graph
+              </span>
             </div>
           </div>
           {/* Risk gauge */}
@@ -153,24 +161,34 @@ export default function InvestigationPage() {
 
         {/* Quick action buttons */}
         <div style={{ display: 'flex', gap: 8, marginTop: 16, flexWrap: 'wrap' }}>
-          {detail.status !== 'INVESTIGATING' && detail.status !== 'RESOLVED' && (
+          {detail.status !== 'INVESTIGATING' && !['RESOLVED', 'CONFIRMED_THREAT', 'BENIGN_MISTAKE', 'FALSE_POSITIVE'].includes(detail.status) && (
             <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => updateStatus('INVESTIGATING')}>
               <Microscope size={13} /> Mark Investigating
             </button>
           )}
-          {detail.status !== 'RESOLVED' && (
-            <button className="btn btn-ghost" style={{ fontSize: 12, color: '#10b981', borderColor: 'rgba(16,185,129,0.3)' }} onClick={() => updateStatus('RESOLVED')}>
-              <CheckCircle size={13} /> Mark Resolved
-            </button>
-          )}
-          {detail.status === 'OPEN' && (
-            <button className="btn btn-ghost" style={{ fontSize: 12, color: '#64748b', borderColor: 'rgba(100,116,139,0.3)' }} onClick={() => updateStatus('FALSE_POSITIVE')}>
-              <XCircle size={13} /> False Positive
-            </button>
+          {!['RESOLVED', 'CONFIRMED_THREAT', 'BENIGN_MISTAKE', 'FALSE_POSITIVE'].includes(detail.status) && (
+            <>
+              <button className="btn btn-ghost" style={{ fontSize: 12, color: '#dc2626', borderColor: 'rgba(220,38,38,0.3)' }} onClick={() => updateStatus('CONFIRMED_THREAT')}>
+                <Shield size={13} /> Confirmed Threat
+              </button>
+              <button className="btn btn-ghost" style={{ fontSize: 12, color: '#0ea5e9', borderColor: 'rgba(14,165,233,0.3)' }} onClick={() => updateStatus('BENIGN_MISTAKE')}>
+                <CheckCircle size={13} /> Benign Mistake
+              </button>
+              <button className="btn btn-ghost" style={{ fontSize: 12, color: '#64748b', borderColor: 'rgba(100,116,139,0.3)' }} onClick={() => updateStatus('FALSE_POSITIVE')}>
+                <XCircle size={13} /> False Positive
+              </button>
+            </>
           )}
           <button className="btn btn-ghost" style={{ fontSize: 12 }} onClick={() => navigate(`/users/${detail.user_id}`)}>
             <Shield size={13} /> View User Profile
           </button>
+          <a
+            href={`${window.location.protocol}//${window.location.hostname}:${import.meta.env.VITE_API_PORT || 8000}/api/investigation/alerts/${alertId}/report.pdf`}
+            target="_blank" rel="noreferrer"
+            style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 14px', borderRadius: 8, border: '1px solid rgba(139,92,246,0.4)', color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}
+          >
+            <Download size={13} /> Export PDF Report
+          </a>
         </div>
       </div>
 
@@ -178,9 +196,7 @@ export default function InvestigationPage() {
       <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', marginBottom: 20 }}>
         <button style={TAB_STYLE('overview')} onClick={() => setTab('overview')}>Overview &amp; SHAP</button>
         <button style={TAB_STYLE('timeline')} onClick={() => setTab('timeline')}>Activity Timeline ({timeline.length})</button>
-        <button style={TAB_STYLE('network')} onClick={() => setTab('network')}>
-          <Share2 size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Network Graph
-        </button>
+
         <button style={TAB_STYLE('evidence')} onClick={() => setTab('evidence')}>Evidence Summary</button>
         <button style={TAB_STYLE('notes')} onClick={() => setTab('notes')}>
           <MessageSquare size={13} style={{ verticalAlign: 'middle', marginRight: 4 }} />Notes
@@ -189,117 +205,112 @@ export default function InvestigationPage() {
 
       {/* OVERVIEW TAB */}
       {tab === 'overview' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-          {/* SHAP panel */}
-          <div className="card">
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
-              🔍 SHAP Explanation
-            </h3>
-            {detail.shap_json && detail.shap_json.length > 0 ? (
-              detail.shap_json.map((f, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingBottom: 12, borderBottom: i < detail.shap_json.length - 1 ? '1px solid var(--border)' : 'none' }}>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{f.friendly_name}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Observed: {typeof f.value === 'number' ? f.value.toFixed(2) : f.value}</div>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div style={{ fontSize: 14, fontWeight: 800, color: f.direction === 'increases_risk' ? '#ef4444' : '#10b981' }}>
-                      {f.direction === 'increases_risk' ? '▲' : '▼'} {Math.abs(f.shap_value).toFixed(3)}
+        <div>
+          {/* AI Narrative Banner */}
+          {detail.narrative && (
+            <div style={{ marginBottom: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(139,92,246,0.08)', border: '1px solid rgba(139,92,246,0.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 16 }}>🤖</span>
+                <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#8b5cf6' }}>AI Analysis Narrative</span>
+                <span style={{ fontSize: 10, padding: '2px 8px', borderRadius: 20, background: 'rgba(139,92,246,0.2)', color: '#8b5cf6', fontWeight: 700 }}>SHAP-Derived</span>
+              </div>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', lineHeight: 1.7, fontFamily: 'inherit', margin: 0 }}>{detail.narrative}</p>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+            {/* SHAP panel */}
+            <div className="card">
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
+                🔍 SHAP Explanation
+              </h3>
+              {detail.shap_json && detail.shap_json.length > 0 ? (
+                detail.shap_json.map((f, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, paddingBottom: 12, borderBottom: i < detail.shap_json.length - 1 ? '1px solid var(--border)' : 'none' }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{f.friendly_name}</div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Observed: {typeof f.value === 'number' ? f.value.toFixed(2) : f.value}</div>
                     </div>
-                    <div style={{ width: 80, height: 4, borderRadius: 2, background: 'var(--border)', marginTop: 4, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.min(100, Math.abs(f.shap_value) * 200)}%`, background: f.direction === 'increases_risk' ? '#ef4444' : '#10b981', borderRadius: 2 }} />
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: f.direction === 'increases_risk' ? '#ef4444' : '#10b981' }}>
+                        {f.direction === 'increases_risk' ? '▲' : '▼'} {Math.abs(f.shap_value).toFixed(3)}
+                      </div>
+                      <div style={{ width: 80, height: 4, borderRadius: 2, background: 'var(--border)', marginTop: 4, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${Math.min(100, Math.abs(f.shap_value) * 200)}%`, background: f.direction === 'increases_risk' ? '#ef4444' : '#10b981', borderRadius: 2 }} />
+                      </div>
                     </div>
                   </div>
+                ))
+              ) : (
+                <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No SHAP data. Run the ML pipeline to generate explanations.</div>
+              )}
+            </div>
+
+            {/* Daily features snapshot */}
+            <div className="card">
+              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
+                📊 Day-of-Alert Features
+              </h3>
+              {detail.daily_features ? (
+                [
+                  ['Login Count', detail.daily_features.login_count],
+                  ['After-Hours Logins', detail.daily_features.after_hours_login_count],
+                  ['USB Connections', detail.daily_features.usb_connect_count],
+                  ['File Copies', detail.daily_features.file_copy_count],
+                  ['External Email Ratio', detail.daily_features.external_email_ratio?.toFixed(3)],
+                  ['File Sharing Visits', detail.daily_features.file_sharing_visit_count],
+                  ['Exfil Indicator', detail.daily_features.exfil_indicator?.toFixed(2)],
+                  ['Behavior Spike Score', detail.daily_features.behavior_spike_score?.toFixed(3)],
+                ].map(([label, val]) => (
+                  <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid rgba(30,45,69,0.5)', fontSize: 13 }}>
+                    <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
+                    <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{val ?? '—'}</span>
+                  </div>
+                ))
+              ) : <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No feature data for this day.</div>}
+
+              {/* Model score breakdown */}
+              {detail.risk_breakdown && (
+                <div style={{ marginTop: 16 }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Model Score Breakdown</div>
+                  {[['Isolation Forest', detail.risk_breakdown.if_score], ['Autoencoder', detail.risk_breakdown.ae_score], ['LSTM', detail.risk_breakdown.lstm_score], ['GNN', detail.risk_breakdown.gnn_score], ['Rule-Based', detail.risk_breakdown.rule_score]].map(([label, score]) => (
+                    <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 110 }}>{label}</span>
+                      <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${(score || 0) * 100}%`, background: '#3b82f6', borderRadius: 3 }} />
+                      </div>
+                      <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)', minWidth: 36 }}>{((score || 0) * 100).toFixed(0)}%</span>
+                    </div>
+                  ))}
                 </div>
-              ))
-            ) : (
-              <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No SHAP data. Run the ML pipeline to generate explanations.</div>
-            )}
+              )}
+            </div>
           </div>
 
-          {/* Daily features snapshot */}
-          <div className="card">
-            <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 14 }}>
-              📊 Day-of-Alert Features
-            </h3>
-            {detail.daily_features ? (
-              [
-                ['Login Count', detail.daily_features.login_count],
-                ['After-Hours Logins', detail.daily_features.after_hours_login_count],
-                ['USB Connections', detail.daily_features.usb_connect_count],
-                ['File Copies', detail.daily_features.file_copy_count],
-                ['External Email Ratio', detail.daily_features.external_email_ratio?.toFixed(3)],
-                ['File Sharing Visits', detail.daily_features.file_sharing_visit_count],
-                ['Exfil Indicator', detail.daily_features.exfil_indicator?.toFixed(2)],
-                ['Behavior Spike Score', detail.daily_features.behavior_spike_score?.toFixed(3)],
-              ].map(([label, val]) => (
-                <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid rgba(30,45,69,0.5)', fontSize: 13 }}>
-                  <span style={{ color: 'var(--text-secondary)' }}>{label}</span>
-                  <span style={{ fontFamily: 'JetBrains Mono, monospace', fontWeight: 600, color: 'var(--text-primary)' }}>{val ?? '—'}</span>
-                </div>
-              ))
-            ) : <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>No feature data for this day.</div>}
-
-            {/* Model score breakdown */}
-            {detail.risk_breakdown && (
-              <div style={{ marginTop: 16 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>Model Score Breakdown</div>
-                {[['Isolation Forest', detail.risk_breakdown.if_score], ['Autoencoder', detail.risk_breakdown.ae_score], ['LSTM', detail.risk_breakdown.lstm_score], ['GNN', detail.risk_breakdown.gnn_score], ['Rule-Based', detail.risk_breakdown.rule_score]].map(([label, score]) => (
-                  <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-muted)', minWidth: 110 }}>{label}</span>
-                    <div style={{ flex: 1, height: 5, borderRadius: 3, background: 'var(--border)', overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${(score || 0) * 100}%`, background: '#3b82f6', borderRadius: 3 }} />
-                    </div>
-                    <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace', color: 'var(--text-secondary)', minWidth: 36 }}>{((score || 0) * 100).toFixed(0)}%</span>
+          {/* Geo Details (Impossible Travel) */}
+          {detail.geo_details && (
+            <div style={{ marginTop: 20, padding: '16px 20px', borderRadius: 12, background: 'rgba(6,182,212,0.08)', border: '1px solid rgba(6,182,212,0.3)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                <span style={{ fontSize: 16 }}>🌍</span>
+                <span style={{ fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#06b6d4' }}>Impossible Travel Details</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, marginBottom: 10 }}>
+                {[['From', `${detail.geo_details.city_a}, ${detail.geo_details.country_a}`], ['To', `${detail.geo_details.city_b}, ${detail.geo_details.country_b}`], ['Time Delta', `${detail.geo_details.time_delta_minutes} min`], ['Distance', `${detail.geo_details.distance_km?.toLocaleString()} km`]].map(([label, val]) => (
+                  <div key={label} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{label}</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#06b6d4', marginTop: 2 }}>{val}</div>
                   </div>
                 ))}
               </div>
-            )}
-          </div>
+              <p style={{ fontSize: 12, color: 'var(--text-muted)', margin: 0 }}>{detail.geo_details.description}</p>
+            </div>
+          )}
+
+          {/* SOAR Playbook Response */}
+          <PlaybookResponsePanel alertId={parseInt(alertId)} />
         </div>
       )}
 
-      {/* NETWORK GRAPH TAB */}
-      {tab === 'network' && (
-        <div>
-          <div className="card" style={{ marginBottom: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-              <Share2 size={15} color="#8b5cf6" />
-              <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Network Activity Graph</h3>
-            </div>
-            <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16 }}>
-              Force-directed graph showing relationships between <span style={{ color: '#3b82f6' }}>■ user</span>,{' '}
-              <span style={{ color: '#8b5cf6' }}>■ devices</span>,{' '}
-              <span style={{ color: '#ef4444' }}>■ alert types</span>, and{' '}
-              <span style={{ color: '#10b981' }}>■ activity events</span>. Drag nodes to explore.
-            </p>
-            <div style={{ height: 380, borderRadius: 10, overflow: 'hidden', background: 'var(--bg-secondary)', border: '1px solid var(--border)' }}>
-              <NetworkGraph
-                userId={detail.user_id}
-                uniquePcs={detail.daily_features?.unique_pcs ?? 2}
-                alertTypes={evidence ? Object.keys(evidence.alert_type_breakdown) : [detail.alert_type]}
-                eventCounts={eventCounts}
-              />
-            </div>
-          </div>
-
-          {/* Legend */}
-          <div className="card">
-            <h3 style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 12 }}>Legend</h3>
-            <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap' }}>
-              {[['User', '#3b82f6', 'Central identity node'], ['Device / PC', '#8b5cf6', 'Workstations accessed'], ['Alert Type', '#ef4444', 'Generated alert categories'], ['Activity Event', '#10b981', 'Top behavior event types']].map(([label, color, desc]) => (
-                <div key={label} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 12, height: 12, borderRadius: '50%', background: color, flexShrink: 0 }} />
-                  <div>
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)' }}>{label}</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{desc}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* TIMELINE TAB */}
       {tab === 'timeline' && (

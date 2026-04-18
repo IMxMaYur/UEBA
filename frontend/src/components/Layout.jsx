@@ -2,17 +2,19 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import {
   Shield, LayoutDashboard, Bell, Zap, LogOut, UserCircle,
   Users, TrendingUp, AlertOctagon, FileBarChart,
-  Settings2,
+  Settings2, Radio,
 } from 'lucide-react'
 import { useAuth } from '../useAuth'
 import { useState, useEffect } from 'react'
 import api from '../api'
+import { useAlertWebSocket } from '../hooks/useAlertWebSocket'
 
 export default function Layout() {
   const navigate = useNavigate()
   const { role, email, isAdmin, isManager, isAnalyst, isViewer } = useAuth()
   const [alertCount, setAlertCount] = useState(0)
-  const logout = () => { localStorage.removeItem('ueba_token'); navigate('/login') }
+  const { unreadCount, clearUnread, isConnected } = useAlertWebSocket()
+  const logout = () => { sessionStorage.removeItem('ueba_token'); navigate('/login') }
 
   useEffect(() => {
     api.get('/alerts?status=OPEN&limit=1')
@@ -28,14 +30,14 @@ export default function Layout() {
   // admin:   All of the above + Simulate + System Controls
   // viewer:  Dashboard, Reports only
   const navItems = [
-    { to: '/app/dashboard',          icon: LayoutDashboard, label: 'Dashboard',         allowed: true                              },
-    { to: '/app/alerts',             icon: Bell,            label: 'Alerts',             allowed: isAdmin || isManager || isAnalyst, badge: alertCount },
-    { to: '/app/users',              icon: Users,           label: 'Users',              allowed: isAdmin || isManager || isAnalyst },
-    { to: '/app/behavior-analytics', icon: TrendingUp,      label: 'Behavior Analytics', allowed: isAdmin || isAnalyst              },
-    { to: '/app/incidents',          icon: AlertOctagon,    label: 'Incidents',          allowed: isAdmin || isManager || isAnalyst },
-    { to: '/app/reports',            icon: FileBarChart,    label: 'Reports',            allowed: isAdmin || isManager              },
-    { to: '/app/simulate',           icon: Zap,             label: 'Simulate',           allowed: isAdmin                          },
-    { to: '/app/system-controls',    icon: Settings2,       label: 'System Controls',    allowed: isAdmin                          },
+    { to: '/dashboard',          icon: LayoutDashboard, label: 'Dashboard',         allowed: true                              },
+    { to: '/alerts',             icon: Bell,            label: 'Alerts',             allowed: isAdmin || isManager || isAnalyst, badge: alertCount },
+    { to: '/users',              icon: Users,           label: 'Users',              allowed: isAdmin || isManager || isAnalyst },
+    { to: '/behavior-analytics', icon: TrendingUp,      label: 'Behavior Analytics', allowed: isAdmin || isAnalyst              },
+    { to: '/incidents',          icon: AlertOctagon,    label: 'Incidents',          allowed: isAdmin || isManager || isAnalyst },
+    { to: '/reports',            icon: FileBarChart,    label: 'Reports',            allowed: isAdmin || isManager              },
+    { to: '/simulate',           icon: Zap,             label: 'Simulate',           allowed: isAdmin                          },
+    { to: '/system-controls',    icon: Settings2,       label: 'System Controls',    allowed: isAdmin                          },
   ]
 
   const monitoringItems  = navItems.slice(0, 3).filter(n => n.allowed)
@@ -164,19 +166,24 @@ export default function Layout() {
 
           <div style={{ flex: 1 }} />
 
-          {/* Live indicator */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981' }}>
-            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px #10b981' }} />
-            System Active
+          {/* Live WS indicator */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: isConnected ? '#10b981' : '#f59e0b' }}>
+            <Radio size={12} />
+            <span style={{ display: 'inline-block', width: 7, height: 7, borderRadius: '50%', background: isConnected ? '#10b981' : '#f59e0b', boxShadow: isConnected ? '0 0 6px #10b981' : 'none' }} />
+            {isConnected ? 'Live' : 'Reconnecting...'}
           </div>
 
-          {/* Alert bell */}
+          {/* Alert bell with WS unread badge */}
           <button
-            onClick={() => navigate('/alerts')}
+            onClick={() => { clearUnread(); navigate('/alerts') }}
             style={{ position: 'relative', background: 'none', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--text-secondary)', fontSize: 12, fontWeight: 600 }}>
-            <Bell size={14} color={alertCount ? '#ef4444' : 'var(--text-muted)'} />
+            <Bell size={14} color={unreadCount > 0 ? '#ef4444' : alertCount ? '#ef4444' : 'var(--text-muted)'} />
             Alerts
-            {alertCount ? (
+            {unreadCount > 0 ? (
+              <span style={{ position: 'absolute', top: -6, right: -6, fontSize: 9, fontWeight: 800, background: '#ef4444', color: 'white', borderRadius: 999, minWidth: 18, height: 18, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px', animation: 'pulse 1s infinite' }}>
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            ) : alertCount ? (
               <span style={{ position: 'absolute', top: -4, right: -4, fontSize: 9, fontWeight: 800, background: '#ef4444', color: 'white', borderRadius: '50%', width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>!</span>
             ) : null}
           </button>

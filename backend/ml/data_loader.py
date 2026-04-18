@@ -32,7 +32,9 @@ def load_logon(path: Optional[Path] = None) -> pd.DataFrame:
     """
     logon.csv fields: id, date, user, pc, activity (Logon/Logoff)
     """
-    fpath = path or DATASET_PATH / "logon.csv"
+    fpath = path or DATASET_PATH / "augmented_logon.csv"
+    if not fpath.exists():
+        fpath = path or DATASET_PATH / "logon.csv"
     logger.info(f"Loading logon data from {fpath} ...")
     df = pd.read_csv(fpath)
     df = _parse_date(df)
@@ -127,11 +129,13 @@ def load_psychometric(path: Optional[Path] = None) -> pd.DataFrame:
 def load_all(
     http_sample_rate: Optional[float] = None,
     email_sample_rate: float = 1.0,
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
 ) -> dict:
     """
     Load all CERT r4.2 data sources. Returns a dict of DataFrames.
     """
-    return {
+    res = {
         "logon": load_logon(),
         "device": load_device(),
         "file": load_file(),
@@ -139,3 +143,17 @@ def load_all(
         "http": load_http(sample_rate=http_sample_rate),
         "psychometric": load_psychometric(),
     }
+
+    if start_date or end_date:
+        logger.info(f"Filtering dataset to date range: {start_date} -> {end_date}")
+        for key, df in res.items():
+            if key == "psychometric" or "date" not in df.columns:
+                continue
+            if start_date:
+                df = df[df["date"].dt.date >= pd.to_datetime(start_date).date()]
+            if end_date:
+                df = df[df["date"].dt.date <= pd.to_datetime(end_date).date()]
+            res[key] = df
+            logger.info(f"  → {key} filtered down to {len(df):,} records.")
+
+    return res

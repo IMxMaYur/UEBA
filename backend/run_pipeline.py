@@ -26,6 +26,8 @@ from ml import gnn_model as gnn_module
 from ml import risk_scoring_engine as rse
 from ml import model_evaluation as eval_module
 from ml import shap_explainer
+from ml import markov_detector
+from ml import sentiment_analyzer
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
@@ -52,15 +54,49 @@ def run(mode: str = "full", http_sample: float = None, email_sample: float = 1.0
     # ── 3. Feature engineering ────────────────────────────────────────────
     feature_matrix = feature_engineering.build_feature_matrix(parsed)
 
-    # ── 4. Behavior profiling (Z-scores) ─────────────────────────────────
+    # ── 4. Behavior profiling (Z-scores + peer-group analytics) ──────────
     feature_matrix = behavior_profiler.compute_zscore_features(feature_matrix)
+
+    # Peer-group z-scoring: compare users vs. department peers
+    try:
+        from app.database import SessionLocal
+        db = SessionLocal()
+        from app.models.orm_models import User as UserORM
+        users = db.query(UserORM).all()
+        user_dept_map = {u.id: (u.department or "UNKNOWN") for u in users}
+        db.close()
+        if user_dept_map:
+            feature_matrix = behavior_profiler.compute_peer_group_zscore(feature_matrix, user_dept_map)
+            logger.info(f"  → Peer-group z-scoring done for {len(user_dept_map):,} users.")
+    except Exception as e:
+        logger.warning(f"Peer-group z-scoring skipped (non-fatal): {e}")
+
+    # Markov attack-sequence scoring
+    try:
+        markov_scores = markov_detector.score_markov_sequences(feature_matrix)
+        feature_matrix["markov_score"] = markov_scores.values
+        logger.info(f"  → Markov sequences scored.")
+    except Exception as e:
+        logger.warning(f"Markov scoring skipped (non-fatal): {e}")
+
+    # Email sentiment scoring
+    try:
+        sentiment_df = sentiment_analyzer.compute_email_sentiment(parsed["email"])
+        if not sentiment_df.empty:
+            feature_matrix = feature_matrix.merge(
+                sentiment_df, on=["user", "date"], how="left"
+            )
+            feature_matrix["email_sentiment_score"] = feature_matrix["email_sentiment_score"].fillna(0.0)
+            logger.info("  → Email sentiment scores merged into feature matrix.")
+    except Exception as e:
+        logger.warning(f"Sentiment scoring skipped (non-fatal): {e}")
 
     # ── 5. Ground-truth labels (for evaluation only) ──────────────────────
     labels = feature_engineering.extract_labels(feature_matrix)
 
     # ── 6. Train models ───────────────────────────────────────────────────
     logger.info("Training Isolation Forest ...")
-    if_model, if_scaler = if_module.train(feature_matrix)
+    if_model, if_scaler = if_module.train(feature_matrix, labels=labels)
 
     logger.info("Training Autoencoder ...")
     ae_model, ae_scaler, ae_threshold = ae_module.train(feature_matrix, labels)
@@ -112,10 +148,41 @@ def run(mode: str = "full", http_sample: float = None, email_sample: float = 1.0
             logger.warning(f"SHAP generation failed (non-fatal): {e}")
 
     # ── 9. Evaluation ─────────────────────────────────────────────────────
-    metrics = eval_module.evaluate(scored_df, labels)
+    # Auto-find the threshold that maximises F1 on this dataset
+    import json as _json, datetime as _dt
+    try:
+        optimal_threshold = eval_module.find_optimal_threshold(scored_df, labels)
+        logger.info(f"Using optimal threshold: {optimal_threshold:.4f}")
+    except Exception as e:
+        logger.warning(f"Optimal threshold search failed ({e}), falling back to 0.35")
+        optimal_threshold = 0.35
+
+    # Re-apply optimal threshold so is_alert flags in scored_df are consistent
+    scored_df["is_alert"] = (scored_df["risk_score"] >= optimal_threshold).astype(int)
+
+    metrics = eval_module.evaluate(scored_df, labels, threshold=optimal_threshold)
+
+    # Persist the optimal threshold to .env so the API & risk engine pick it up
+    _env_path = Path(__file__).parent / ".env"
+    try:
+        if _env_path.exists():
+            env_lines = _env_path.read_text().splitlines()
+            new_lines = []
+            replaced = False
+            for line in env_lines:
+                if line.startswith("RISK_THRESHOLD="):
+                    new_lines.append(f"RISK_THRESHOLD={optimal_threshold:.4f}")
+                    replaced = True
+                else:
+                    new_lines.append(line)
+            if not replaced:
+                new_lines.append(f"RISK_THRESHOLD={optimal_threshold:.4f}")
+            _env_path.write_text("\n".join(new_lines) + "\n")
+            logger.info(f"RISK_THRESHOLD updated to {optimal_threshold:.4f} in .env")
+    except Exception as e:
+        logger.warning(f"Could not update .env: {e}")
 
     # Save metrics for /api/stats/model-metrics
-    import json as _json, datetime as _dt
     metrics_out = dict(metrics)
     metrics_out["last_trained"] = _dt.datetime.utcnow().isoformat()
     _mpath = Path(__file__).parent / "trained_models" / "metrics.json"

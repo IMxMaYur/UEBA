@@ -34,11 +34,11 @@ class UserOut(BaseModel):
     is_active: bool
     latest_risk_score: float
     # OCEAN personality traits (scores 10–50)
-    ocean_O: Optional[int] = None  # Openness
-    ocean_C: Optional[int] = None  # Conscientiousness
-    ocean_E: Optional[int] = None  # Extraversion
-    ocean_A: Optional[int] = None  # Agreeableness
-    ocean_N: Optional[int] = None  # Neuroticism
+    ocean_o: Optional[int] = None  # Openness
+    ocean_c: Optional[int] = None  # Conscientiousness
+    ocean_e: Optional[int] = None  # Extraversion
+    ocean_a: Optional[int] = None  # Agreeableness
+    ocean_n: Optional[int] = None  # Neuroticism
     class Config: from_attributes = True
 
 

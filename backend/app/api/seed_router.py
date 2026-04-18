@@ -64,11 +64,11 @@ def _do_seed(db: Session) -> dict:
             continue
 
         ocean = {
-            "ocean_O": _safe_int(row.get("O")),
-            "ocean_C": _safe_int(row.get("C")),
-            "ocean_E": _safe_int(row.get("E")),
-            "ocean_A": _safe_int(row.get("A")),
-            "ocean_N": _safe_int(row.get("N")),
+            "ocean_o": _safe_int(row.get("O")),
+            "ocean_c": _safe_int(row.get("C")),
+            "ocean_e": _safe_int(row.get("E")),
+            "ocean_a": _safe_int(row.get("A")),
+            "ocean_n": _safe_int(row.get("N")),
         }
         name = str(row.get("employee_name", "")).strip() or None
 
@@ -77,11 +77,11 @@ def _do_seed(db: Session) -> dict:
             # Always update name and OCEAN from psychometric (it's the authoritative source)
             existing.name = name
             existing.department = existing.department or "CERT Dataset"
-            existing.ocean_O = ocean["ocean_O"]
-            existing.ocean_C = ocean["ocean_C"]
-            existing.ocean_E = ocean["ocean_E"]
-            existing.ocean_A = ocean["ocean_A"]
-            existing.ocean_N = ocean["ocean_N"]
+            existing.ocean_o = ocean["ocean_o"]
+            existing.ocean_c = ocean["ocean_c"]
+            existing.ocean_e = ocean["ocean_e"]
+            existing.ocean_a = ocean["ocean_a"]
+            existing.ocean_n = ocean["ocean_n"]
             updated += 1
         else:
             db.add(User(

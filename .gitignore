@@ -6,7 +6,25 @@ build/
 venv/
 __pycache__/
 *.pyc
+*.pyo
 .pytest_cache/
 trained_models/
 .DS_Store
 Dataset/
+
+# SQLite databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Runtime logs
+*.log
+logs/
+
+# Scratch / one-off notes
+*.txt
+
+# OS and editor artifacts
+Thumbs.db
+.vscode/
+.idea/

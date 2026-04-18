@@ -5,7 +5,7 @@ import {
   LineElement, PointElement, ArcElement, Tooltip, Legend, Filler,
 } from 'chart.js'
 import { Bar, Line, Doughnut } from 'react-chartjs-2'
-import { Shield, AlertTriangle, Users, TrendingUp, ChevronRight, Activity, Cpu, Target } from 'lucide-react'
+import { Shield, AlertTriangle, Users, TrendingUp, ChevronRight, Cpu, Target, Activity } from 'lucide-react'
 import api from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, ArcElement, Tooltip, Legend, Filler)
@@ -80,6 +80,8 @@ export default function DashboardPage() {
       setMetrics(m.data)
     }).catch(console.error).finally(() => setLoading(false))
   }, [])
+
+
 
   if (loading) return (
     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', color: 'var(--text-muted)' }}>
@@ -214,7 +216,7 @@ export default function DashboardPage() {
             <Cpu size={16} color="#8b5cf6" />
             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)' }}>ML MODEL PERFORMANCE</h3>
           </div>
-          {metrics ? (
+          {metrics && metrics.roc_auc > 0 ? (
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
               {[
                 { label: 'ROC-AUC',   value: metrics.roc_auc,           color: '#10b981' },
@@ -231,7 +233,8 @@ export default function DashboardPage() {
           ) : (
             <div style={{ padding: '24px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
               <Target size={32} style={{ opacity: 0.3, display: 'block', margin: '0 auto 8px' }} />
-              ML metrics not yet available.
+              Run the ML pipeline to load model metrics.<br />
+              <span style={{ fontSize: 11, fontFamily: 'JetBrains Mono, monospace' }}>python run_pipeline.py</span>
             </div>
           )}
           {metrics?.last_trained && (
@@ -247,7 +250,7 @@ export default function DashboardPage() {
         <div className="card" style={{ padding: 0 }}>
           <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)' }}>RECENT OPEN ALERTS</h3>
-            <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/app/alerts')}>View all</button>
+            <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/alerts')}>View all</button>
           </div>
           <div style={{ padding: '8px 0' }}>
             {alerts.length === 0 && (
@@ -255,7 +258,7 @@ export default function DashboardPage() {
             )}
             {alerts.map(alert => (
               <div key={alert.id}
-                onClick={() => navigate('/app/alerts')}
+                onClick={() => navigate('/alerts')}
                 style={{ display: 'flex', alignItems: 'flex-start', gap: 12, cursor: 'pointer', padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: alert.severity === 'CRITICAL' ? '#ef4444' : alert.severity === 'HIGH' ? '#f59e0b' : '#3b82f6', flexShrink: 0, marginTop: 4 }} />
                 <div style={{ flex: 1, minWidth: 0 }}>
@@ -275,7 +278,7 @@ export default function DashboardPage() {
       <div className="card" style={{ padding: 0 }}>
         <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h3 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-secondary)' }}>RISK LEADERBOARD — TOP USERS</h3>
-          <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/app/users')}>View all users</button>
+          <button className="btn btn-ghost" style={{ fontSize: 11, padding: '4px 10px' }} onClick={() => navigate('/users')}>View all users</button>
         </div>
         <table className="data-table">
           <thead>
@@ -290,11 +293,10 @@ export default function DashboardPage() {
           </thead>
           <tbody>
             {leaderboard.length === 0 && (
-              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No monitored users yet. Run a simulation scenario first.</td></tr>
+              <tr><td colSpan={6} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No users loaded. Run the pipeline first.</td></tr>
             )}
-            {leaderboard.filter(u => u.risk_score > 0).map(user => (
-              <tr key={user.user_id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/app/users/${user.user_id}`)}>
-
+            {leaderboard.map(user => (
+              <tr key={user.user_id} style={{ cursor: 'pointer' }} onClick={() => navigate(`/users/${user.user_id}`)}>
                 <td>
                   <div style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12, fontWeight: 600 }}>{user.user_id}</div>
                   {user.name && <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{user.name}</div>}
@@ -314,6 +316,7 @@ export default function DashboardPage() {
           </tbody>
         </table>
       </div>
+
     </div>
   )
 }

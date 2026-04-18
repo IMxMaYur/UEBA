@@ -12,10 +12,10 @@ import BehaviorAnalyticsPage from './pages/BehaviorAnalyticsPage'
 import IncidentsPage from './pages/IncidentsPage'
 import ReportsPage from './pages/ReportsPage'
 import SystemControlsPage from './pages/SystemControlsPage'
+import KnowledgeGraphPage from './pages/KnowledgeGraphPage'
 
 function ProtectedRoute({ children }) {
-  const token = localStorage.getItem('ueba_token')
-  // No token → always go to login
+  const token = sessionStorage.getItem('ueba_token')
   return token ? children : <Navigate to="/login" replace />
 }
 
@@ -23,15 +23,9 @@ export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        {/* Public: login */}
         <Route path="/login" element={<LoginPage />} />
-
-        {/* Redirect bare root → login (LoginPage will redirect to dashboard after auth) */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-
-        {/* Protected app shell */}
-        <Route path="/app" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
-          <Route index element={<Navigate to="/app/dashboard" replace />} />
+        <Route path="/" element={<ProtectedRoute><Layout /></ProtectedRoute>}>
+          <Route index element={<Navigate to="/dashboard" replace />} />
           <Route path="dashboard"                    element={<DashboardPage />} />
           <Route path="alerts"                       element={<RoleGuard roles={['admin','manager','analyst']}><AlertsPage /></RoleGuard>} />
           <Route path="alerts/:alertId/investigate"  element={<RoleGuard roles={['admin','manager','analyst']}><InvestigationPage /></RoleGuard>} />
@@ -42,20 +36,9 @@ export default function App() {
           <Route path="reports"                      element={<RoleGuard roles={['admin','manager']}><ReportsPage /></RoleGuard>} />
           <Route path="simulate"                     element={<RoleGuard roles={['admin']}><SimulatePage /></RoleGuard>} />
           <Route path="system-controls"              element={<RoleGuard roles={['admin']}><SystemControlsPage /></RoleGuard>} />
+          <Route path="graph"                        element={<RoleGuard roles={['admin','manager','analyst']}><KnowledgeGraphPage /></RoleGuard>} />
+          <Route path="graph/:userId"                element={<RoleGuard roles={['admin','manager','analyst']}><KnowledgeGraphPage /></RoleGuard>} />
         </Route>
-
-        {/* Legacy paths → redirect to new /app/ prefix */}
-        <Route path="/dashboard"         element={<Navigate to="/app/dashboard" replace />} />
-        <Route path="/alerts/*"          element={<Navigate to="/app/alerts" replace />} />
-        <Route path="/users/*"           element={<Navigate to="/app/users" replace />} />
-        <Route path="/behavior-analytics" element={<Navigate to="/app/behavior-analytics" replace />} />
-        <Route path="/incidents"         element={<Navigate to="/app/incidents" replace />} />
-        <Route path="/reports"           element={<Navigate to="/app/reports" replace />} />
-        <Route path="/simulate"          element={<Navigate to="/app/simulate" replace />} />
-        <Route path="/system-controls"   element={<Navigate to="/app/system-controls" replace />} />
-
-        {/* Catch-all */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
       </Routes>
     </BrowserRouter>
   )

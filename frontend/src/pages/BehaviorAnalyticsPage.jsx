@@ -4,7 +4,7 @@ import {
   BarElement, ArcElement, Tooltip, Legend, Filler
 } from 'chart.js'
 import { Scatter, Bar, Doughnut } from 'react-chartjs-2'
-import { Activity, TrendingUp, Target } from 'lucide-react'
+import { Activity, TrendingUp, Target, RefreshCw } from 'lucide-react'
 import api from '../api'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Tooltip, Legend, Filler)
@@ -40,13 +40,22 @@ function RiskBucket(users) {
 export default function BehaviorAnalyticsPage() {
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+
+  const fetchData = (isRefresh = false) => {
+    if (isRefresh) setRefreshing(true)
+    else setLoading(true)
+    api.get('/stats/leaderboard?limit=200')
+      .then(r => setUsers(r.data || []))
+      .catch(console.error)
+      .finally(() => { setLoading(false); setRefreshing(false) })
+  }
 
   useEffect(() => {
-    Promise.all([
-      api.get('/stats/leaderboard?limit=200'),
-    ]).then(([lb]) => {
-      setUsers(lb.data || [])
-    }).catch(console.error).finally(() => setLoading(false))
+    fetchData()
+    // Auto-poll every 30s so data updates after simulation
+    const interval = setInterval(() => fetchData(true), 30000)
+    return () => clearInterval(interval)
   }, [])
 
   if (loading) return (
@@ -116,6 +125,14 @@ export default function BehaviorAnalyticsPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <TrendingUp size={20} color="#8b5cf6" />
           <h1 style={{ fontSize: 22, fontWeight: 800 }}>Behavioral Anomaly Analytics</h1>
+          <button
+            onClick={() => fetchData(true)}
+            disabled={refreshing}
+            style={{ marginLeft: 8, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 8, padding: '4px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, color: '#8b5cf6', fontSize: 11, fontWeight: 600 }}
+          >
+            <RefreshCw size={11} style={{ animation: refreshing ? 'spin 1s linear infinite' : 'none' }} />
+            {refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
         </div>
         <p style={{ color: 'var(--text-muted)', fontSize: 13 }}>ML-powered outlier detection visualization • {users.length} users analyzed</p>
       </div>

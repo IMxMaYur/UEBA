@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Shield, ChevronRight, Clock, AlertTriangle, Search } from 'lucide-react'
+import { Shield, ChevronRight, Clock, AlertTriangle, Search, RefreshCw } from 'lucide-react'
 import TimelineViewer from '../components/TimelineViewer'
 import api from '../api'
 
@@ -34,10 +34,26 @@ export default function IncidentsPage() {
   const [timelineLoading, setTimelineLoading] = useState(false)
 
   useEffect(() => {
-    api.get('/alerts?status=INVESTIGATING&limit=100')
-      .then(r => setAlerts(r.data))
-      .catch(() => api.get('/alerts?limit=50').then(r => setAlerts(r.data.filter(a => a.status !== 'RESOLVED'))))
-      .finally(() => setLoading(false))
+    const load = () => {
+      // Fetch OPEN + INVESTIGATING alerts (simulated alerts start as OPEN)
+      Promise.all([
+        api.get('/alerts?status=OPEN&limit=100'),
+        api.get('/alerts?status=INVESTIGATING&limit=100'),
+      ])
+        .then(([openRes, invRes]) => {
+          const combined = [...(openRes.data || []), ...(invRes.data || [])]
+          // Deduplicate by id and sort newest first
+          const seen = new Set()
+          const unique = combined.filter(a => { if (seen.has(a.id)) return false; seen.add(a.id); return true })
+          unique.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
+          setAlerts(unique)
+        })
+        .catch(() => api.get('/alerts?limit=100').then(r => setAlerts(r.data.filter(a => a.status !== 'RESOLVED'))))
+        .finally(() => setLoading(false))
+    }
+    load()
+    const interval = setInterval(load, 30000)
+    return () => clearInterval(interval)
   }, [])
 
   const openInvestigation = async (alert) => {

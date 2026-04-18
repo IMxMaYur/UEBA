@@ -3,9 +3,9 @@ import axios from 'axios'
 
 const api = axios.create({ baseURL: '/api' })
 
-// Attach token from localStorage to every request
+// Attach token from sessionStorage to every request
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('ueba_token')
+  const token = sessionStorage.getItem('ueba_token')
   if (token) config.headers.Authorization = `Bearer ${token}`
   return config
 })
@@ -17,13 +17,10 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401) {
       const url = err.config?.url || ''
-      // Only sign out if the request was to an auth endpoint or token-check
-      const isAuthEndpoint = url.includes('/auth/') || url.includes('/login')
-      if (isAuthEndpoint) {
-        localStorage.removeItem('ueba_token')
+      if (!url.includes('/auth/login')) {
+        sessionStorage.removeItem('ueba_token')
         window.location.href = '/login'
       }
-      // For data endpoints (users, stats, etc.) — just reject, let the component handle it
     }
     return Promise.reject(err)
   }

@@ -142,7 +142,7 @@ def get_trends(
 
 @router.get("/leaderboard", response_model=List[LeaderboardEntry])
 def get_leaderboard(
-    limit: int = Query(20, ge=1, le=100),
+    limit: int = Query(20, ge=1, le=500),
     db: Session = Depends(get_db),
     _=Depends(get_current_auth_user),
 ):

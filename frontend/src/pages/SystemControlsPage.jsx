@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Settings2, Play, Upload, UserPlus, Trash2, RefreshCw, CheckCircle, XCircle, Activity, Database } from 'lucide-react'
+import { Settings2, UserPlus, Trash2, RefreshCw, CheckCircle, XCircle, Activity, Database } from 'lucide-react'
 import api from '../api'
 
 
@@ -12,16 +12,10 @@ function StatusPill({ ok }) {
 export default function SystemControlsPage() {
   const [health, setHealth]         = useState(null)
   const [metrics, setMetrics]       = useState(null)
-  const [runStatus, setRunStatus]   = useState(null)
-  const [running, setRunning]       = useState(false)
-  const [uploading, setUploading]   = useState(false)
-  const [uploadMsg, setUploadMsg]   = useState(null)
   const [users, setUsers]           = useState([])
   const [newUser, setNewUser]       = useState({ email: '', password: '', role: 'analyst' })
   const [saving, setSaving]         = useState(false)
   const [saveMsg, setSaveMsg]       = useState(null)
-  const [seeding, setSeeding]       = useState(false)
-  const [seedMsg, setSeedMsg]       = useState(null)
   const [resetting, setResetting]   = useState(false)
   const [resetMsg, setResetMsg]     = useState(null)
   const [confirmReset, setConfirmReset] = useState(false)
@@ -32,36 +26,11 @@ export default function SystemControlsPage() {
     api.get('/auth/users').then(r => setUsers(r.data || [])).catch(() => setUsers([]))
   }, [])
 
-  const runDetection = async () => {
-    setRunning(true); setRunStatus(null)
-    try {
-      const r = await api.post('/simulate/run-detection')
-      setRunStatus({ ok: true, msg: r.data?.message || 'Pipeline executed successfully.' })
-    } catch (e) {
-      setRunStatus({ ok: false, msg: e.response?.data?.detail || 'Pipeline execution failed.' })
-    }
-    setRunning(false)
-  }
-
-  const seedUsers = async () => {
-    setSeeding(true); setSeedMsg(null)
-    try {
-      const r = await api.post('/seed/users')
-      setSeedMsg({ ok: true, msg: r.data?.message || 'Users seeded.' })
-      const u = await api.get('/users?limit=100')
-      setUsers(u.data || [])
-    } catch (e) {
-      setSeedMsg({ ok: false, msg: e.response?.data?.detail || 'Seed failed.' })
-    }
-    setSeeding(false)
-  }
-
   const resetData = async () => {
     setResetting(true); setResetMsg(null); setConfirmReset(false)
     try {
       const r = await api.post('/seed/reset')
       setResetMsg({ ok: true, msg: r.data?.message || 'Reset complete.' })
-      // Refresh health
       api.get('/stats/model-metrics').then(r => setMetrics(r.data)).catch(() => {})
     } catch (e) {
       setResetMsg({ ok: false, msg: e.response?.data?.detail || 'Reset failed.' })
@@ -69,28 +38,12 @@ export default function SystemControlsPage() {
     setResetting(false)
   }
 
-  const handleUpload = async (e) => {
-    const file = e.target.files[0]
-    if (!file) return
-    setUploading(true); setUploadMsg(null)
-    const form = new FormData()
-    form.append('file', file)
-    try {
-      const r = await api.post('/simulate/upload-dataset', form, { headers: { 'Content-Type': 'multipart/form-data' } })
-      setUploadMsg({ ok: true, msg: r.data?.message || 'Dataset uploaded successfully.' })
-    } catch (e) {
-      setUploadMsg({ ok: false, msg: e.response?.data?.detail || 'Upload failed.' })
-    }
-    setUploading(false)
-    e.target.value = null
-  }
-
   const createUser = async () => {
     if (!newUser.email || !newUser.password) return
     setSaving(true); setSaveMsg(null)
     try {
-      await api.post(`/auth/register?role=${newUser.role}`, { email: newUser.email, password: newUser.password })
-      setSaveMsg({ ok: true, msg: `✅ User ${newUser.email} created with role '${newUser.role}'.` })
+      await api.post('/auth/users', newUser)
+      setSaveMsg({ ok: true, msg: `User ${newUser.email} created.` })
       setNewUser({ email: '', password: '', role: 'analyst' })
       const r = await api.get('/auth/users')
       setUsers(r.data || [])
@@ -100,11 +53,11 @@ export default function SystemControlsPage() {
     setSaving(false)
   }
 
-  const deleteUser = async (id) => {
-    if (!window.confirm(`Delete this user?`)) return
+  const deleteUser = async (email) => {
+    if (!window.confirm(`Delete user ${email}?`)) return
     try {
-      await api.delete(`/auth/users/${id}`)
-      setUsers(u => u.filter(x => x.id !== id))
+      await api.delete(`/auth/users/${email}`)
+      setUsers(u => u.filter(x => x.email !== email))
     } catch (e) { console.error(e) }
   }
 
@@ -145,62 +98,10 @@ export default function SystemControlsPage() {
           </div>
         </div>
 
-        {/* ML metrics */}
-        {metrics && metrics.roc_auc > 0 && (
-          <div className="card">
-            <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 14 }}>ML MODEL METRICS</div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-              {[
-                { label: 'ROC-AUC', value: metrics.roc_auc, color: '#10b981' },
-                { label: 'Precision', value: metrics.precision, color: '#3b82f6' },
-                { label: 'Recall', value: metrics.recall, color: '#f59e0b' },
-                { label: 'F1-Score', value: metrics.f1_score, color: '#8b5cf6' },
-              ].map(m => (
-                <div key={m.label} style={{ textAlign: 'center', padding: '10px', background: 'var(--bg-secondary)', borderRadius: 8 }}>
-                  <div style={{ fontSize: 20, fontWeight: 800, color: m.color }}>{(m.value * 100).toFixed(1)}%</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>{m.label}</div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
       </div>
 
 
 
-      {/* Fresh Start / Reset */}
-      <div className="card" style={{ marginBottom: 20 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-          <Trash2 size={15} color="#ef4444" />
-          <h3 style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)' }}>FRESH START / RESET</h3>
-        </div>
-        <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14 }}>
-          Delete all existing data (users, alerts, logs, etc.) and reset the system to a fresh state.
-          This action is irreversible.
-        </p>
-        {!confirmReset ? (
-          <button onClick={() => setConfirmReset(true)} className="btn btn-danger" style={{ fontSize: 12 }}>
-            <Trash2 size={14} /> Reset All Data
-          </button>
-        ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>Are you sure?</span>
-            <button onClick={resetData} disabled={resetting} className="btn btn-danger" style={{ fontSize: 12 }}>
-              {resetting ? <><RefreshCw size={14} style={{ animation: 'spin 1s linear infinite' }} /> Resetting...</> : 'Yes, Reset Everything'}
-            </button>
-            <button onClick={() => setConfirmReset(false)} className="btn" style={{ fontSize: 12, background: 'var(--bg-secondary)', border: '1px solid var(--border)', color: 'var(--text-secondary)' }}>
-              Cancel
-            </button>
-          </div>
-        )}
-        {resetMsg && (
-          <div style={{ marginTop: 12, fontSize: 12, padding: '8px 12px', borderRadius: 8, background: resetMsg.ok ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)', color: resetMsg.ok ? '#10b981' : '#ef4444', border: `1px solid ${resetMsg.ok ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'}` }}>
-            {resetMsg.ok ? '✅' : '❌'} {resetMsg.msg}
-          </div>
-        )}
-      </div>
-
-      {/* User management */}
       <div className="card" style={{ padding: 0 }}>
         <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8 }}>
           <UserPlus size={15} color="#06b6d4" />
@@ -250,10 +151,10 @@ export default function SystemControlsPage() {
           </thead>
           <tbody>
             {users.length === 0 && (
-              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No dashboard users found.</td></tr>
+              <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 32 }}>No users found.</td></tr>
             )}
             {users.map(u => (
-              <tr key={u.id || u.email}>
+              <tr key={u.email}>
                 <td style={{ fontFamily: 'JetBrains Mono, monospace', fontSize: 12 }}>{u.email}</td>
                 <td>
                   <span style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', padding: '2px 8px', borderRadius: 999,

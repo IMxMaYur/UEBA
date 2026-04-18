@@ -20,11 +20,14 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(me
 RISK_THRESHOLD = float(os.getenv("RISK_THRESHOLD", "0.65"))
 
 # Weights (must sum to 1.0)
-W_IF = 0.35
-W_AE = 0.30
-W_LSTM = 0.20
-W_GNN = 0.10
+# IF=0.30, AE=0.25, LSTM=0.17, GNN=0.08, RULES=0.05, PEER=0.10, MARKOV=0.05
+W_IF    = 0.30
+W_AE    = 0.25
+W_LSTM  = 0.17
+W_GNN   = 0.08
 W_RULES = 0.05
+W_PEER  = 0.10   # Peer-group anomaly score
+W_MARKOV = 0.05  # Markov attack sequence score
 
 
 # ---------------------------------------------------------------------------
@@ -84,21 +87,32 @@ def compute_risk_scores(
     Merge all component scores and compute weighted final risk score.
 
     Returns a copy of feature_matrix with added score columns:
-      if_score, ae_score, lstm_score, gnn_score, rule_score, risk_score, is_alert
+      if_score, ae_score, lstm_score, gnn_score, rule_score,
+      peer_risk_score, markov_score, risk_score, is_alert
     """
     df = feature_matrix.copy()
-    df["if_score"] = if_scores.values
-    df["ae_score"] = ae_scores.values
+    df["if_score"]   = if_scores.values
+    df["ae_score"]   = ae_scores.values
     df["lstm_score"] = lstm_scores.values
-    df["gnn_score"] = gnn_scores.values
+    df["gnn_score"]  = gnn_scores.values
     df["rule_score"] = compute_rule_violations(df).values
 
+    # Peer-group score (already in feature_matrix if behavior_profiler run)
+    if "peer_risk_score" not in df.columns:
+        df["peer_risk_score"] = 0.0
+
+    # Markov attack sequence score (populated by markov_detector if available)
+    if "markov_score" not in df.columns:
+        df["markov_score"] = 0.0
+
     df["risk_score"] = (
-        W_IF    * df["if_score"]
-        + W_AE  * df["ae_score"]
+        W_IF     * df["if_score"]
+        + W_AE   * df["ae_score"]
         + W_LSTM * df["lstm_score"]
-        + W_GNN * df["gnn_score"]
+        + W_GNN  * df["gnn_score"]
         + W_RULES * df["rule_score"]
+        + W_PEER  * df["peer_risk_score"]
+        + W_MARKOV * df["markov_score"]
     ).clip(0.0, 1.0)
 
     df["is_alert"] = (df["risk_score"] >= RISK_THRESHOLD).astype(int)

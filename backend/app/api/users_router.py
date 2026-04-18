@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api/users", tags=["users"])
 
 @router.get("", response_model=List[UserOut])
 def list_users(
-    limit: int = Query(100, le=500),
+    limit: int = Query(1000, le=10000),
     offset: int = 0,
     min_risk: float = 0.0,
     db: Session = Depends(get_db),

@@ -16,8 +16,8 @@ export default function LoginPage() {
     setLoading(true); setError('')
     try {
       const { data } = await api.post('/auth/login', { email, password })
-      localStorage.setItem('ueba_token', data.access_token)
-      navigate('/app/dashboard')
+      sessionStorage.setItem('ueba_token', data.access_token)
+      navigate('/dashboard')
     } catch {
       setError('Invalid credentials. Please try again.')
     } finally {
